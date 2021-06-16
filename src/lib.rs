@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::{fs::File, path::PathBuf};
 
-mod gpu_controller;
+pub mod gpu_controller;
 
 #[cfg(test)]
 mod tests {
