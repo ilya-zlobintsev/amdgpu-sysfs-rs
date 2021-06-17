@@ -3,6 +3,8 @@ name = "amdgpu-sysfs"
 version = "0.1.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
+license = "GPL-3.0"
+repository = "https://github.com/ilyazzz/amdgpu-sysfs-rs/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
