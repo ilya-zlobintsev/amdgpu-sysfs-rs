@@ -5,6 +5,7 @@ authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
 repository = "https://github.com/ilyazzz/amdgpu-sysfs-rs/"
+description = "Library for interacting with the Linux Kernel SysFS interface for GPUs (mainly targeted at the AMDGPU driver)."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
