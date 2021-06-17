@@ -4,7 +4,8 @@ use std::{
 };
 
 use crate::sysfs::SysFS;
-
+ 
+#[derive(Debug)]
 pub struct HwMon {
     path: PathBuf,
 }
@@ -65,12 +66,14 @@ impl SysFS for HwMon {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Temperature {
     pub current: f32,
     pub crit: f32,
     pub crit_hyst: f32,
 }
 
+#[derive(Debug)]
 pub enum HwMonError {
     InvalidSysFS,
 }

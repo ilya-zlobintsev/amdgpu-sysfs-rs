@@ -2,6 +2,7 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
+#[derive(Debug)]
 pub struct GpuController {
     sysfs_path: PathBuf,
     pub hw_monitors: Vec<HwMon>,
