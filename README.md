@@ -1,8 +1,7 @@
 # amdgpu-syfs-rs
+[![Crates.io](https://img.shields.io/crates/v/amdgpu-sysfs)](https://crates.io/crates/amdgpu-sysfs)
 
 This library allows you to interact with the Linux Kernel SysFS interface for GPUs (mainly targeted at the AMDGPU driver). 
-
-Crates.io: WIP
 
 Basic usage:
 
