@@ -1,23 +1,34 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use crate::{hw_mon::HwMon, sysfs::SysFS};
+
 pub struct GpuController {
     sysfs_path: PathBuf,
+    pub hw_monitors: Vec<HwMon>,
 }
 
 impl GpuController {
     pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuControllerError> {
-        let gpu_controller = Self { sysfs_path };
+        let mut hw_monitors = Vec::new();
+
+        if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
+            for hw_mon_dir in hw_mons_iter {
+                if let Ok(hw_mon_dir) = hw_mon_dir {
+                    if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()) {
+                        hw_monitors.push(hw_mon);
+                    }
+                }
+            }
+        }
+
+        let gpu_controller = Self {
+            sysfs_path,
+            hw_monitors,
+        };
 
         gpu_controller.get_uevent()?;
 
         Ok(gpu_controller)
-    }
-
-    fn read_file(&self, file: &str) -> Option<String> {
-        match std::fs::read_to_string(self.sysfs_path.join(file)) {
-            Ok(contents) => Some(contents.trim().to_string()),
-            Err(_) => None,
-        }
     }
 
     fn get_uevent(&self) -> Result<HashMap<String, String>, GpuControllerError> {
@@ -93,6 +104,12 @@ impl GpuController {
     /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
     pub fn get_vbios_version(&self) -> Option<String> {
         self.read_file("vbios_version")
+    }
+}
+
+impl SysFS for GpuController {
+    fn get_path(&self) -> &std::path::Path {
+        &self.sysfs_path
     }
 }
 

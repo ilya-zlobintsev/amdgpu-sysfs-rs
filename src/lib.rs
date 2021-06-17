@@ -1,13 +1,12 @@
-use std::io::Write;
-use std::{fs::File, path::PathBuf};
-
 pub mod gpu_controller;
+pub mod hw_mon;
+pub mod sysfs;
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
-    use crate::{gpu_controller::GpuController, *};
+    use crate::gpu_controller::GpuController;
+    use std::io::Write;
+    use std::{fs::File, path::Path};
     use tempfile::tempdir;
 
     #[test]
