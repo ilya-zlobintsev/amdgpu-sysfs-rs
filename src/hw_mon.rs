@@ -5,12 +5,16 @@ use std::{
 
 use crate::sysfs::SysFS;
 
+/// Rerepesents a hardware monitor.
+/// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
 #[derive(Debug)]
 pub struct HwMon {
     path: PathBuf,
 }
 
 impl HwMon {
+    /// Most of the time you may want to access `HwMon`s through the
+    /// [GpuController](../gpu_controller/struct.GpuController.html) they're bound to.
     pub fn new_from_path(path: PathBuf) -> Result<Self, HwMonError> {
         let hw_mon = Self { path };
 

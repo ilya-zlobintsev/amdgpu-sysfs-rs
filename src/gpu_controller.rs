@@ -2,13 +2,19 @@ use std::{collections::HashMap, path::PathBuf};
 
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
+/// A `GpuController` represents a handle over a single GPU device, as exposed in the Linux SysFS.
 #[derive(Debug)]
 pub struct GpuController {
     sysfs_path: PathBuf,
+    /// A collection of all [HwMon](../hw_mon/struct.HwMon.html)s bound to this GPU. They are used to expose real-time data.
     pub hw_monitors: Vec<HwMon>,
 }
 
 impl GpuController {
+    /// Initializes a new `GpuController` from a given SysFS device path.
+    ///
+    /// Normally, the path should look akin to `/sys/class/drm/card0/device`,
+    /// and it needs to at least contain a `uevent` file.
     pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuControllerError> {
         let mut hw_monitors = Vec::new();
 

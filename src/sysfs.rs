@@ -11,7 +11,7 @@ pub trait SysFS {
         }
     }
 
-    /// Write to a file in the SysFS. 
+    /// Write to a file in the SysFS.
     fn write_file(&self, file: &str, contents: &str) -> Result<(), std::io::Error> {
         std::fs::write(self.get_path().join(file), contents)
     }
