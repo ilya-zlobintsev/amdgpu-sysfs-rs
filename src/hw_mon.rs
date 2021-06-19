@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::sysfs::SysFS;
- 
+
 #[derive(Debug)]
 pub struct HwMon {
     path: PathBuf,
@@ -57,6 +57,22 @@ impl HwMon {
         }
 
         temps
+    }
+
+    /// Gets the current GFX/compute clockspeed in MHz.
+    pub fn get_gpu_clockspeed(&self) -> Option<u64> {
+        self.read_file("freq1_input").map(|f| {
+            f.parse::<u64>()
+                .expect("Unexpected GPU clockspeed (driver bug?)") / 1000000
+        })
+    }
+
+    /// Gets the current memory clockspeed in MHz.
+    pub fn get_vram_clockspeed(&self) -> Option<u64> {
+        self.read_file("freq2_input").map(|f| {
+            f.parse::<u64>()
+                .expect("Unexpected VRAM clockspeed (driver bug?)") / 1000000
+        })
     }
 }
 
