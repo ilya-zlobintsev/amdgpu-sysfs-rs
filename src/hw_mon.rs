@@ -5,7 +5,7 @@ use std::{
 
 use crate::sysfs::SysFS;
 
-/// Rerepesents a hardware monitor.
+/// Reprepesents a hardware monitor.
 /// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
 #[derive(Debug)]
 pub struct HwMon {
