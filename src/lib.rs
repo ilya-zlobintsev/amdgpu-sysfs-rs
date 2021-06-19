@@ -2,7 +2,7 @@ pub mod gpu_controller;
 pub mod hw_mon;
 pub mod sysfs;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "mock"))]
 mod tests {
     use crate::gpu_controller::GpuController;
     use std::io::Write;
