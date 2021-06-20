@@ -4,21 +4,16 @@ pub mod sysfs;
 
 #[cfg(all(test, feature = "mock"))]
 mod tests {
-    use crate::gpu_controller::GpuController;
-    use std::io::Write;
-    use std::{fs::File, path::Path};
+    use crate::gpu_controller::{GpuController, PowerLevel};
+    use crate::sysfs::SysFS;
     use tempfile::tempdir;
 
     #[test]
     fn mock() {
-        let dir = tempdir().expect("Failed to create temp dir");
+        let mockfs = MockSysFS::new();
 
-        let path = dir.path().to_path_buf();
-
-        create_sysfs_mock(path.as_path());
-
-        let gpu_controller =
-            GpuController::new_from_path(path).expect("Failed to create GPU controller");
+        let gpu_controller = GpuController::new_from_path(mockfs.get_path().to_path_buf())
+            .expect("Failed to create GPU controller");
 
         assert_eq!(gpu_controller.get_driver(), "mock");
 
@@ -33,33 +28,71 @@ mod tests {
             Some("MOCKFS-VBIOS".to_string())
         );
 
-        dir.close().expect("Failed to close temp dir");
+        assert_eq!(gpu_controller.get_power_level(), Some(PowerLevel::Auto));
+
+        let hw_mon = gpu_controller.hw_monitors.first().unwrap();
+
+        assert_eq!(hw_mon.get_fan_pwm(), Some(255));
+        
+        assert_eq!(hw_mon.get_fan_current(), Some(1600));
+        assert_eq!(hw_mon.get_fan_target(), Some(1600));
+
+        assert_eq!(hw_mon.get_fan_max(), Some(3200));
+        assert_eq!(hw_mon.get_fan_min(), Some(0));
     }
 
-    fn create_sysfs_mock(path: &Path) {
-        let path = &path;
+    #[derive(Debug)]
+    struct MockSysFS {
+        temp_dir: tempfile::TempDir,
+    }
 
-        std::fs::create_dir_all(&path).expect("Failed to create mock path");
+    impl SysFS for MockSysFS {
+        fn get_path(&self) -> &std::path::Path {
+            self.temp_dir.path()
+        }
+    }
 
-        let mut uevent = File::create(path.join("uevent")).unwrap();
+    impl MockSysFS {
+        pub fn new() -> Self {
+            let temp_dir = tempdir().expect("Failed to create temp dir");
 
-        writeln!(uevent, "DRIVER=mock").unwrap();
-        writeln!(uevent, "PCI_ID=1002:67DF").unwrap();
+            let path = temp_dir.path().to_path_buf();
 
-        let mut gpu_busy_percent = File::create(path.join("gpu_busy_percent")).unwrap();
+            std::fs::create_dir_all(&path).expect("Failed to create mock path");
 
-        writeln!(gpu_busy_percent, "100").unwrap();
+            let mock = Self { temp_dir };
 
-        let mut mem_info_vram_total = File::create(path.join("mem_info_vram_total")).unwrap();
+            mock.write_file("uevent", "DRIVER=mock\nPCI_ID=1002:67DF")
+                .unwrap();
 
-        writeln!(mem_info_vram_total, "{}", 512 * 1024 * 1024).unwrap();
+            mock.write_file("gpu_busy_percent", "100").unwrap();
 
-        let mut mem_info_vram_used = File::create(path.join("mem_info_vram_used")).unwrap();
+            mock.write_file("mem_info_vram_total", (512 * 1024 * 1024).to_string())
+                .unwrap();
 
-        writeln!(mem_info_vram_used, "{}", 256 * 1024 * 1024).unwrap();
+            mock.write_file("mem_info_vram_used", (256 * 1024 * 1024).to_string())
+                .unwrap();
 
-        let mut vbios_version = File::create(path.join("vbios_version")).unwrap();
+            mock.write_file("vbios_version", "MOCKFS-VBIOS").unwrap();
 
-        writeln!(vbios_version, "MOCKFS-VBIOS").unwrap();
+            mock.write_file("power_dpm_force_performance_level", "auto")
+                .unwrap();
+
+            let hw_mon_path = path.join("hwmon/hwmon1");
+
+            std::fs::create_dir_all(hw_mon_path).unwrap();
+
+            mock.write_file("hwmon/hwmon1/name", "mock").unwrap();
+
+            mock.write_file("hwmon/hwmon1/pwm1", "255").unwrap();
+
+            mock.write_file("hwmon/hwmon1/fan1_max", "3200").unwrap();
+            mock.write_file("hwmon/hwmon1/fan1_min", "0").unwrap();
+
+            mock.write_file("hwmon/hwmon1/fan1_input", "1600").unwrap();
+            mock.write_file("hwmon/hwmon1/fan1_target", "1600").unwrap();
+
+            mock
+        }
     }
 }

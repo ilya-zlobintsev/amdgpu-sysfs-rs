@@ -128,6 +128,7 @@ impl SysFS for GpuController {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PowerLevel {
     Auto,
     Low,

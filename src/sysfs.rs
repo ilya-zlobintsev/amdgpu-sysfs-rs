@@ -12,7 +12,7 @@ pub trait SysFS {
     }
 
     /// Write to a file in the SysFS.
-    fn write_file(&self, file: &str, contents: &str) -> Result<(), std::io::Error> {
+    fn write_file<C: AsRef<[u8]>>(&self, file: &str, contents: C) -> Result<(), std::io::Error> {
         std::fs::write(self.get_path().join(file), contents)
     }
 }
