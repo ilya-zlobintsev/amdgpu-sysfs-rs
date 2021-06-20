@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, fmt, path::PathBuf};
 
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
@@ -112,11 +112,58 @@ impl GpuController {
     pub fn get_vbios_version(&self) -> Option<String> {
         self.read_file("vbios_version")
     }
+
+    /// Returns the current power level. // TODO doc
+    pub fn get_power_level(&self) -> Option<PowerLevel> {
+        self.read_file("power_dpm_force_performance_level")
+            .map(|power_level| {
+                PowerLevel::from_str(&power_level).expect("Unexpected power level (driver bug?)")
+            })
+    }
 }
 
 impl SysFS for GpuController {
     fn get_path(&self) -> &std::path::Path {
         &self.sysfs_path
+    }
+}
+
+pub enum PowerLevel {
+    Auto,
+    Low,
+    High,
+}
+
+impl Default for PowerLevel {
+    fn default() -> Self {
+        PowerLevel::Auto
+    }
+}
+
+impl PowerLevel {
+    pub fn from_str(power_level: &str) -> Result<Self, GpuControllerError> {
+        match power_level {
+            "auto" | "Automatic" => Ok(PowerLevel::Auto),
+            "high" | "Highest Clocks" => Ok(PowerLevel::High),
+            "low" | "Lowest Clocks" => Ok(PowerLevel::Low),
+            _ => Err(GpuControllerError::ParseError(
+                "unrecognized GPU power profile".to_string(),
+            )),
+        }
+    }
+}
+
+impl fmt::Display for PowerLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                PowerLevel::Auto => "auto",
+                PowerLevel::High => "high",
+                PowerLevel::Low => "low",
+            }
+        )
     }
 }
 
