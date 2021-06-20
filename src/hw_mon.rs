@@ -116,6 +116,60 @@ impl HwMon {
                 / 1000000.0
         })
     }
+
+    /// Gets the pulse width modulation fan level.
+    pub fn get_fan_pwm(&self) -> Option<u8> {
+        self.read_file("pwm1")
+            .map(|pwm| pwm.parse().expect("Unexpected PWM (driver bug?)"))
+    }
+
+    /// Gets the current fan speed in RPM.
+    pub fn get_fan_current(&self) -> Option<u32> {
+        self.read_file("fan1_input").map(|s| {
+            s
+                .parse()
+                .expect("Unexpected fan1_input (driver bug?)")
+        })
+    }
+    
+    /// Gets the maximum possible fan speed in RPM.
+    pub fn get_fan_max(&self) -> Option<u32> {
+        self.read_file("fan1_max").map(|s| {
+            s
+                .parse()
+                .expect("Unexpected fan1_max (driver bug?)")
+        })
+    }
+
+    /// Gets the minimum possible fan speed in RPM.
+    pub fn get_fan_min(&self) -> Option<u32> {
+        self.read_file("fan1_min").map(|s| {
+            s
+                .parse()
+                .expect("Unexpected fan1_min (driver bug?)")
+        })
+    }
+    
+    /// Gets the currently desired fan speed in RPM.
+    pub fn get_fan_target(&self) -> Option<u32> {
+        self.read_file("fan1_target").map(|s| {
+            s
+                .parse()
+                .expect("Unexpected fan1_target (driver bug?)")
+        })
+    }
+
+    /// Gets the pulse width modulation control method.
+    pub fn get_fan_control_method(&self) -> Option<FanControlMethod> {
+        self.read_file("pwm1_enable").map(|pwm1_enable| {
+            FanControlMethod::from_enable(
+                pwm1_enable
+                    .parse()
+                    .expect("Unexpected pwm1_enable (driver bug?)"),
+            )
+            .expect("Unexpected pwm1_enable (driver bug or unsupported?)")
+        })
+    }
 }
 
 impl SysFS for HwMon {
@@ -134,4 +188,22 @@ pub struct Temperature {
 #[derive(Debug)]
 pub enum HwMonError {
     InvalidSysFS,
+    InvalidValue,
+}
+
+pub enum FanControlMethod {
+    None,
+    Auto,
+    Manual,
+}
+
+impl FanControlMethod {
+    pub fn from_enable(enable_value: u8) -> Result<Self, HwMonError> {
+        match enable_value {
+            0 => Ok(Self::None),
+            1 => Ok(Self::Manual),
+            2 => Ok(Self::Auto),
+            _ => Err(HwMonError::InvalidValue),
+        }
+    }
 }
