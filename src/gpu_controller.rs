@@ -113,12 +113,73 @@ impl GpuController {
         self.read_file("vbios_version")
     }
 
-    /// Returns the current power level. // TODO doc
-    pub fn get_power_level(&self) -> Option<PowerLevel> {
+    /// Returns the currently forced performance level.
+    pub fn get_power_force_performance_level(&self) -> Option<PerformanceLevel> {
         self.read_file("power_dpm_force_performance_level")
             .map(|power_level| {
-                PowerLevel::from_str(&power_level).expect("Unexpected power level (driver bug?)")
+                PerformanceLevel::from_str(&power_level)
+                    .expect("Unexpected power level (driver bug?)")
             })
+    }
+
+    /// Forces a given performance level.
+    pub fn set_power_force_performance_level(
+        &self,
+        level: PerformanceLevel,
+    ) -> Result<(), GpuControllerError> {
+        Ok(self.write_file("power_dpm_force_performance_level", level.to_string())?)
+    }
+
+    /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
+    pub fn get_power_levels(&self, kind: PowerStateKind) -> Option<(Vec<String>, u8)> {
+        self.read_file(kind.to_filename()).map(|content| {
+            let mut power_levels = Vec::new();
+            let mut active = 0;
+
+            for mut line in content.trim().split('\n') {
+                if let Some(stripped) = line.strip_suffix("*") {
+                    line = stripped;
+
+                    if let Some(identifier) = stripped.split(":").next() {
+                        active = identifier
+                            .trim()
+                            .parse()
+                            .expect("Unexpected power level identifier");
+                    }
+                }
+                if let Some(s) = line.split(":").last() {
+                    power_levels.push(s.trim().to_string());
+                }
+            }
+
+            (power_levels, active)
+        })
+    }
+
+    /// Sets the enabled power levels for a power state kind to a given list of levels. This means that only the given power levels will be allowed.
+    /// 
+    /// Can only be used if `power_force_performance_level` is set to `manual`.
+    pub fn set_enabled_power_levels(
+        &self,
+        kind: PowerStateKind,
+        levels: &[u8],
+    ) -> Result<(), GpuControllerError> {
+        match self.get_power_force_performance_level() {
+            Some(PerformanceLevel::Manual) => {
+                let mut s = String::new();
+
+                for l in levels {
+                    s.push(char::from_digit((*l).into(), 10).unwrap());
+                    s.push(' ');
+                }
+
+                Ok(self.write_file(kind.to_filename(), s)?)
+            }
+            _ => Err(GpuControllerError::NotAllowed(
+                "power_force_performance level needs to be set to 'manual' to adjust power levels"
+                    .to_string(),
+            )),
+        }
     }
 }
 
@@ -128,25 +189,49 @@ impl SysFS for GpuController {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum PowerLevel {
-    Auto,
-    Low,
-    High,
+pub enum PowerStateKind {
+    CoreClock,
+    MemoryClock,
+    SOCClock,
+    FabricClock,
+    DCEFClock,
+    PcieSpeed,
 }
 
-impl Default for PowerLevel {
-    fn default() -> Self {
-        PowerLevel::Auto
+impl PowerStateKind {
+    pub fn to_filename(&self) -> &str {
+        match self {
+            PowerStateKind::CoreClock => "pp_dpm_sclk",
+            PowerStateKind::MemoryClock => "pp_dpm_mclk",
+            PowerStateKind::SOCClock => "pp_dpm_socclk",
+            PowerStateKind::FabricClock => "pp_dpm_fclk",
+            PowerStateKind::DCEFClock => "pp_dpm_dcefclk",
+            PowerStateKind::PcieSpeed => "pp_dpm_pcie",
+        }
     }
 }
 
-impl PowerLevel {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PerformanceLevel {
+    Auto,
+    Low,
+    High,
+    Manual,
+}
+
+impl Default for PerformanceLevel {
+    fn default() -> Self {
+        PerformanceLevel::Auto
+    }
+}
+
+impl PerformanceLevel {
     pub fn from_str(power_level: &str) -> Result<Self, GpuControllerError> {
         match power_level {
-            "auto" | "Automatic" => Ok(PowerLevel::Auto),
-            "high" | "Highest Clocks" => Ok(PowerLevel::High),
-            "low" | "Lowest Clocks" => Ok(PowerLevel::Low),
+            "auto" | "Automatic" => Ok(PerformanceLevel::Auto),
+            "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
+            "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
+            "manual" | "Manual" => Ok(PerformanceLevel::Manual),
             _ => Err(GpuControllerError::ParseError(
                 "unrecognized GPU power profile".to_string(),
             )),
@@ -154,15 +239,16 @@ impl PowerLevel {
     }
 }
 
-impl fmt::Display for PowerLevel {
+impl fmt::Display for PerformanceLevel {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                PowerLevel::Auto => "auto",
-                PowerLevel::High => "high",
-                PowerLevel::Low => "low",
+                PerformanceLevel::Auto => "auto",
+                PerformanceLevel::High => "high",
+                PerformanceLevel::Low => "low",
+                PerformanceLevel::Manual => "manual",
             }
         )
     }
@@ -170,6 +256,7 @@ impl fmt::Display for PowerLevel {
 
 #[derive(Debug)]
 pub enum GpuControllerError {
+    NotAllowed(String),
     InvalidSysFS,
     ParseError(String),
     IoError(std::io::Error),
