@@ -1,5 +1,7 @@
 use std::{collections::HashMap, fmt, path::PathBuf};
 
+use tokio::fs;
+
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
 /// A `GpuController` represents a handle over a single GPU device, as exposed in the Linux SysFS.
@@ -8,6 +10,7 @@ pub struct GpuController {
     sysfs_path: PathBuf,
     /// A collection of all [HwMon](../hw_mon/struct.HwMon.html)s bound to this GPU. They are used to expose real-time data.
     pub hw_monitors: Vec<HwMon>,
+    uevent: HashMap<String, String>,
 }
 
 impl GpuController {
@@ -28,25 +31,11 @@ impl GpuController {
             }
         }
 
-        let gpu_controller = Self {
-            sysfs_path,
-            hw_monitors,
-        };
-
-        gpu_controller.get_uevent().await?;
-
-        Ok(gpu_controller)
-    }
-
-    async fn get_uevent(&self) -> Result<HashMap<String, String>, GpuControllerError> {
-        let raw = self
-            .read_file("uevent")
-            .await
-            .ok_or_else(|| GpuControllerError::InvalidSysFS)?;
+        let uevent_raw = fs::read_to_string(sysfs_path.join("uevent")).await?;
 
         let mut uevent = HashMap::new();
 
-        for line in raw.trim().split('\n') {
+        for line in uevent_raw.trim().split('\n') {
             let (key, value) = line
                 .split_once("=")
                 .ok_or_else(|| GpuControllerError::ParseError("Missing =".to_string()))?;
@@ -54,17 +43,39 @@ impl GpuController {
             uevent.insert(key.to_owned(), value.to_owned());
         }
 
-        Ok(uevent)
+        match uevent.get("DRIVER") {
+            Some(_) => Ok(Self {
+                sysfs_path,
+                hw_monitors,
+                uevent,
+            }),
+            None => Err(GpuControllerError::InvalidSysFS),
+        }
     }
 
     /// Gets the kernel driver used.
-    pub async fn get_driver(&self) -> String {
-        self.get_uevent()
-            .await
-            .unwrap()
-            .get("DRIVER")
-            .unwrap()
-            .clone()
+    pub async fn get_driver(&self) -> &str {
+        self.uevent.get("DRIVER").unwrap()
+    }
+    
+    /// Gets the **GPU's** PCI vendor and ID. This is the ID of your GPU chip, e.g. AMD Radeon RX 580.
+    pub fn get_pci_id(&self) -> Option<(&str, &str)> {
+       match self.uevent.get("PCI_ID") {
+           Some(pci_str) => {
+                pci_str.split_once(':') 
+           }
+           None => None,
+       }
+    }
+
+    /// Gets the **Card's** PCI vendor and ID. This is the ID of your card model, e.g. Sapphire RX 580 Pulse.
+    pub fn get_pci_subsys_id(&self) -> Option<(&str, &str)> {
+       match self.uevent.get("PCI_SUBSYS_ID") {
+           Some(pci_str) => {
+                pci_str.split_once(':') 
+           }
+           None => None,
+       }
     }
 
     async fn read_vram_file(&self, file: &str) -> Option<u64> {

@@ -19,6 +19,10 @@ mod tests {
 
         assert_eq!(gpu_controller.get_driver().await, "mock");
 
+        assert_eq!(gpu_controller.get_pci_id(), Some(("1002", "67DF")));
+
+        assert_eq!(gpu_controller.get_pci_subsys_id(), Some(("1DA2", "E387")));
+
         assert_eq!(gpu_controller.get_busy_percent().await, Some(100));
 
         assert_eq!(
@@ -79,7 +83,7 @@ mod tests {
 
             let mock = Self { temp_dir };
 
-            mock.write_file("uevent", "DRIVER=mock\nPCI_ID=1002:67DF")
+            mock.write_file("uevent", "DRIVER=mock\nPCI_ID=1002:67DF\nPCI_SUBSYS_ID=1DA2:E387")
                 .await
                 .unwrap();
 
