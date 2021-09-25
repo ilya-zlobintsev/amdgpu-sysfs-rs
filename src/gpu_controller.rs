@@ -78,6 +78,21 @@ impl GpuController {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
+    pub async fn get_current_link_speed(&self) -> Option<String> {
+        self.read_file("current_link_speed").await
+    }
+
+    pub async fn get_current_link_width(&self) -> Option<String> {
+        self.read_file("current_link_width").await
+    }
+
+    pub async fn get_max_link_speed(&self) -> Option<String> {
+        self.read_file("max_link_speed").await
+    }
+    pub async fn get_max_link_width(&self) -> Option<String> {
+        self.read_file("max_link_width").await
+    }
+
     async fn read_vram_file(&self, file: &str) -> Option<u64> {
         match self.read_file(file).await {
             Some(total_vram) => {

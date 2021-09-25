@@ -9,7 +9,7 @@ pub trait SysFS {
     /// Reads the content of a file in the SysFS.
     async fn read_file(&self, file: &str) -> Option<String> {
         match fs::read_to_string(self.get_path().join(file)).await {
-            Ok(contents) => Some(contents.trim().to_string()),
+            Ok(contents) => Some(contents.trim().to_owned()),
             Err(_) => None,
         }
     }

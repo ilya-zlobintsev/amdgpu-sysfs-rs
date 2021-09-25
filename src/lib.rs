@@ -45,6 +45,15 @@ mod tests {
             Some(PerformanceLevel::Auto)
         );
 
+        assert_eq!(
+            gpu_controller.get_current_link_speed().await,
+            Some("8.0 GT/s PCIe".to_string())
+        );
+        assert_eq!(
+            gpu_controller.get_max_link_width().await,
+            Some("16".to_string())
+        );
+
         let hw_mon = gpu_controller.hw_monitors.first().unwrap();
 
         assert_eq!(hw_mon.get_fan_pwm().await, Some(255));
@@ -83,9 +92,12 @@ mod tests {
 
             let mock = Self { temp_dir };
 
-            mock.write_file("uevent", "DRIVER=mock\nPCI_ID=1002:67DF\nPCI_SUBSYS_ID=1DA2:E387")
-                .await
-                .unwrap();
+            mock.write_file(
+                "uevent",
+                "DRIVER=mock\nPCI_ID=1002:67DF\nPCI_SUBSYS_ID=1DA2:E387",
+            )
+            .await
+            .unwrap();
 
             mock.write_file("gpu_busy_percent", "100").await.unwrap();
 
@@ -104,6 +116,18 @@ mod tests {
             mock.write_file("power_dpm_force_performance_level", "auto")
                 .await
                 .unwrap();
+
+            mock.write_file("current_link_speed", "8.0 GT/s PCIe")
+                .await
+                .unwrap();
+
+            mock.write_file("max_link_speed", "8.0 GT/s PCIe")
+                .await
+                .unwrap();
+
+            mock.write_file("current_link_width", "16").await.unwrap();
+
+            mock.write_file("max_link_width", "16").await.unwrap();
 
             let hw_mon_path = path.join("hwmon/hwmon1");
 
