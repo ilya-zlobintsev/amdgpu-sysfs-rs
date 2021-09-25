@@ -50,6 +50,12 @@ mod tests {
 
         assert_eq!(hw_mon.get_fan_max().await, Some(3200));
         assert_eq!(hw_mon.get_fan_min().await, Some(0));
+        
+        let temperatures = hw_mon.get_temps().await;
+        
+        assert_eq!(temperatures["edge"].current, Some(44.0));
+        assert_eq!(temperatures["edge"].crit, Some(94.0));
+        assert_eq!(temperatures["edge"].crit_hyst, Some(-273.150));
     }
 
     #[derive(Debug)]
@@ -112,6 +118,20 @@ mod tests {
                 .await
                 .unwrap();
             mock.write_file("hwmon/hwmon1/fan1_target", "1600")
+                .await
+                .unwrap();
+
+            mock.write_file("hwmon/hwmon1/temp1_label", "edge")
+                .await
+                .unwrap();
+
+            mock.write_file("hwmon/hwmon1/temp1_input", "44000")
+                .await
+                .unwrap();
+            mock.write_file("hwmon/hwmon1/temp1_crit", "94000")
+                .await
+                .unwrap();
+            mock.write_file("hwmon/hwmon1/temp1_crit_hyst", "-273150")
                 .await
                 .unwrap();
 
