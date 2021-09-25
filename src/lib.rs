@@ -50,9 +50,9 @@ mod tests {
 
         assert_eq!(hw_mon.get_fan_max().await, Some(3200));
         assert_eq!(hw_mon.get_fan_min().await, Some(0));
-        
+
         let temperatures = hw_mon.get_temps().await;
-        
+
         assert_eq!(temperatures["edge"].current, Some(44.0));
         assert_eq!(temperatures["edge"].crit, Some(94.0));
         assert_eq!(temperatures["edge"].crit_hyst, Some(-273.150));
