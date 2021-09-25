@@ -57,25 +57,25 @@ impl GpuController {
     pub async fn get_driver(&self) -> &str {
         self.uevent.get("DRIVER").unwrap()
     }
-    
+
     /// Gets the **GPU's** PCI vendor and ID. This is the ID of your GPU chip, e.g. AMD Radeon RX 580.
     pub fn get_pci_id(&self) -> Option<(&str, &str)> {
-       match self.uevent.get("PCI_ID") {
-           Some(pci_str) => {
-                pci_str.split_once(':') 
-           }
-           None => None,
-       }
+        match self.uevent.get("PCI_ID") {
+            Some(pci_str) => pci_str.split_once(':'),
+            None => None,
+        }
     }
 
     /// Gets the **Card's** PCI vendor and ID. This is the ID of your card model, e.g. Sapphire RX 580 Pulse.
     pub fn get_pci_subsys_id(&self) -> Option<(&str, &str)> {
-       match self.uevent.get("PCI_SUBSYS_ID") {
-           Some(pci_str) => {
-                pci_str.split_once(':') 
-           }
-           None => None,
-       }
+        match self.uevent.get("PCI_SUBSYS_ID") {
+            Some(pci_str) => pci_str.split_once(':'),
+            None => None,
+        }
+    }
+
+    pub fn get_pci_slot_name(&self) -> Option<&str> {
+        self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
     async fn read_vram_file(&self, file: &str) -> Option<u64> {
