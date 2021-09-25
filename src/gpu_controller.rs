@@ -5,7 +5,7 @@ use tokio::fs;
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
 /// A `GpuController` represents a handle over a single GPU device, as exposed in the Linux SysFS.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GpuController {
     sysfs_path: PathBuf,
     /// A collection of all [HwMon](../hw_mon/struct.HwMon.html)s bound to this GPU. They are used to expose real-time data.

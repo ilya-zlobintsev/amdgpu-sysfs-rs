@@ -7,7 +7,7 @@ use crate::sysfs::SysFS;
 
 /// Reprepesents a hardware monitor.
 /// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct HwMon {
     path: PathBuf,
 }
