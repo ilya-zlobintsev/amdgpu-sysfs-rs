@@ -1,6 +1,6 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -11,6 +11,8 @@ description = "Library for interacting with the Linux Kernel SysFS interface for
 
 [dependencies]
 tempfile = { version = "3.2", optional = true }
+tokio = { version = "1", features = ["fs", "macros", "rt"] }
+async-trait = "0.1"
 
 [features]
 mock = ["tempfile"]
