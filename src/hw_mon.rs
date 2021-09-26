@@ -105,6 +105,11 @@ impl HwMon {
         self.read_power("power1_cap_min").await
     }
 
+    /// Gets the default power cap for the GPU in watts.
+    pub async fn get_power_cap_default(&self) -> Option<f64> {
+        self.read_power("power1_cap_default").await
+    }
+
     /// Gets the pulse width modulation fan level.
     pub async fn get_fan_pwm(&self) -> Option<u8> {
         self.read_file("pwm1")
