@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::sysfs::SysFS;
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 /// Reprepesents a hardware monitor.
 /// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
@@ -164,7 +164,7 @@ impl SysFS for HwMon {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Temperature {
     pub current: Option<f32>,
     pub crit: Option<f32>,
@@ -177,7 +177,7 @@ pub enum HwMonError {
     InvalidValue,
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub enum FanControlMethod {
     None,
     Auto,
