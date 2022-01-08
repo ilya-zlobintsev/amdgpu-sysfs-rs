@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt, path::PathBuf};
+use std::{collections::HashMap, fmt, path::PathBuf, str::FromStr};
 
 use tokio::fs;
 
@@ -22,11 +22,9 @@ impl GpuController {
         let mut hw_monitors = Vec::new();
 
         if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
-            for hw_mon_dir in hw_mons_iter {
-                if let Ok(hw_mon_dir) = hw_mon_dir {
-                    if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()).await {
-                        hw_monitors.push(hw_mon);
-                    }
+            for hw_mon_dir in hw_mons_iter.flatten() {
+                if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()).await {
+                    hw_monitors.push(hw_mon);
                 }
             }
         }
@@ -162,17 +160,17 @@ impl GpuController {
             let mut active = 0;
 
             for mut line in content.trim().split('\n') {
-                if let Some(stripped) = line.strip_suffix("*") {
+                if let Some(stripped) = line.strip_suffix('*') {
                     line = stripped;
 
-                    if let Some(identifier) = stripped.split(":").next() {
+                    if let Some(identifier) = stripped.split(':').next() {
                         active = identifier
                             .trim()
                             .parse()
                             .expect("Unexpected power level identifier");
                     }
                 }
-                if let Some(s) = line.split(":").last() {
+                if let Some(s) = line.split(':').last() {
                     power_levels.push(s.trim().to_string());
                 }
             }
@@ -250,9 +248,11 @@ impl Default for PerformanceLevel {
     }
 }
 
-impl PerformanceLevel {
-    pub fn from_str(power_level: &str) -> Result<Self, GpuControllerError> {
-        match power_level {
+impl FromStr for PerformanceLevel {
+    type Err = GpuControllerError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
             "auto" | "Automatic" => Ok(PerformanceLevel::Auto),
             "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
             "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
