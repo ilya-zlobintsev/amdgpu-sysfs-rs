@@ -15,7 +15,7 @@ pub struct HwMon {
 
 impl HwMon {
     /// Most of the time you may want to access `HwMon`s through the
-    /// [GpuController](../gpu_controller/struct.GpuController.html) they're bound to.
+    /// [GpuHandle](../gpu_handle/struct.GpuHandle.html) they're bound to.
     pub async fn new_from_path(path: PathBuf) -> Result<Self, HwMonError> {
         let hw_mon = Self { path };
 

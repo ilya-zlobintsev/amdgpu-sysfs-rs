@@ -1,6 +1,6 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.4.7"
+version = "0.5.0"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -10,10 +10,10 @@ description = "Library for interacting with the Linux Kernel SysFS interface for
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tempfile = { version = "3.2", optional = true }
-tokio = { version = "1", features = ["fs", "macros", "rt"] }
+tokio = { version = "1", features = ["fs"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 
-[features]
-mock = ["tempfile"]
+[dev-dependencies]
+tokio = { version = "1", features = ["fs", "macros", "rt"] }
+tempfile = "3.2"

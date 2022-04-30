@@ -1,10 +1,10 @@
-pub mod gpu_controller;
+pub mod gpu_handle;
 pub mod hw_mon;
 pub mod sysfs;
 
-#[cfg(all(test, feature = "mock"))]
+#[cfg(all(test))]
 mod tests {
-    use crate::gpu_controller::{GpuController, PerformanceLevel};
+    use crate::gpu_handle::{GpuHandle, PerformanceLevel};
     use crate::sysfs::SysFS;
     use tempfile::tempdir;
     use tokio::fs;
@@ -13,48 +13,48 @@ mod tests {
     async fn mock() {
         let mockfs = MockSysFS::init().await;
 
-        let gpu_controller = GpuController::new_from_path(mockfs.get_path().to_path_buf())
+        let gpu_handle = GpuHandle::new_from_path(mockfs.get_path().to_path_buf())
             .await
-            .expect("Failed to create GPU controller");
+            .expect("Failed to create GPU handle");
 
-        assert_eq!(gpu_controller.get_driver().await, "mock");
+        assert_eq!(gpu_handle.get_driver().await, "mock");
 
-        assert_eq!(gpu_controller.get_pci_id(), Some(("1002", "67DF")));
+        assert_eq!(gpu_handle.get_pci_id(), Some(("1002", "67DF")));
 
-        assert_eq!(gpu_controller.get_pci_subsys_id(), Some(("1DA2", "E387")));
+        assert_eq!(gpu_handle.get_pci_subsys_id(), Some(("1DA2", "E387")));
 
-        assert_eq!(gpu_controller.get_busy_percent().await, Some(100));
+        assert_eq!(gpu_handle.get_busy_percent().await, Some(100));
 
         assert_eq!(
-            gpu_controller.get_total_vram().await,
+            gpu_handle.get_total_vram().await,
             Some(512 * 1024 * 1024)
         );
 
         assert_eq!(
-            gpu_controller.get_used_vram().await,
+            gpu_handle.get_used_vram().await,
             Some(256 * 1024 * 1024)
         );
 
         assert_eq!(
-            gpu_controller.get_vbios_version().await,
+            gpu_handle.get_vbios_version().await,
             Some("MOCKFS-VBIOS".to_string())
         );
 
         assert_eq!(
-            gpu_controller.get_power_force_performance_level().await,
+            gpu_handle.get_power_force_performance_level().await,
             Some(PerformanceLevel::Auto)
         );
 
         assert_eq!(
-            gpu_controller.get_current_link_speed().await,
+            gpu_handle.get_current_link_speed().await,
             Some("8.0 GT/s PCIe".to_string())
         );
         assert_eq!(
-            gpu_controller.get_max_link_width().await,
+            gpu_handle.get_max_link_width().await,
             Some("16".to_string())
         );
 
-        let hw_mon = gpu_controller.hw_monitors.first().unwrap();
+        let hw_mon = gpu_handle.hw_monitors.first().unwrap();
 
         assert_eq!(hw_mon.get_fan_pwm().await, Some(255));
 

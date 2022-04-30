@@ -9,21 +9,21 @@ use tokio::fs;
 
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
-/// A `GpuController` represents a handle over a single GPU device, as exposed in the Linux SysFS.
+/// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
 #[derive(Clone, Debug)]
-pub struct GpuController {
+pub struct GpuHandle {
     sysfs_path: PathBuf,
     /// A collection of all [HwMon](../hw_mon/struct.HwMon.html)s bound to this GPU. They are used to expose real-time data.
     pub hw_monitors: Vec<HwMon>,
     uevent: HashMap<String, String>,
 }
 
-impl GpuController {
-    /// Initializes a new `GpuController` from a given SysFS device path.
+impl GpuHandle {
+    /// Initializes a new `GpuHandle` from a given SysFS device path.
     ///
     /// Normally, the path should look akin to `/sys/class/drm/card0/device`,
     /// and it needs to at least contain a `uevent` file.
-    pub async fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuControllerError> {
+    pub async fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuHandleError> {
         let mut hw_monitors = Vec::new();
 
         if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
@@ -41,7 +41,7 @@ impl GpuController {
         for line in uevent_raw.trim().split('\n') {
             let (key, value) = line
                 .split_once("=")
-                .ok_or_else(|| GpuControllerError::ParseError("Missing =".to_string()))?;
+                .ok_or_else(|| GpuHandleError::ParseError("Missing =".to_string()))?;
 
             uevent.insert(key.to_owned(), value.to_owned());
         }
@@ -52,7 +52,7 @@ impl GpuController {
                 hw_monitors,
                 uevent,
             }),
-            None => Err(GpuControllerError::InvalidSysFS),
+            None => Err(GpuHandleError::InvalidSysFS),
         }
     }
 
@@ -152,7 +152,7 @@ impl GpuController {
     pub async fn set_power_force_performance_level(
         &self,
         level: PerformanceLevel,
-    ) -> Result<(), GpuControllerError> {
+    ) -> Result<(), GpuHandleError> {
         Ok(self
             .write_file("power_dpm_force_performance_level", level.to_string())
             .await?)
@@ -191,7 +191,7 @@ impl GpuController {
         &self,
         kind: PowerStateKind,
         levels: &[u8],
-    ) -> Result<(), GpuControllerError> {
+    ) -> Result<(), GpuHandleError> {
         match self.get_power_force_performance_level().await {
             Some(PerformanceLevel::Manual) => {
                 let mut s = String::new();
@@ -203,7 +203,7 @@ impl GpuController {
 
                 Ok(self.write_file(kind.to_filename(), s).await?)
             }
-            _ => Err(GpuControllerError::NotAllowed(
+            _ => Err(GpuHandleError::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
                     .to_string(),
             )),
@@ -211,7 +211,7 @@ impl GpuController {
     }
 }
 
-impl SysFS for GpuController {
+impl SysFS for GpuHandle {
     fn get_path(&self) -> &std::path::Path {
         &self.sysfs_path
     }
@@ -254,7 +254,7 @@ impl Default for PerformanceLevel {
 }
 
 impl FromStr for PerformanceLevel {
-    type Err = GpuControllerError;
+    type Err = GpuHandleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -262,7 +262,7 @@ impl FromStr for PerformanceLevel {
             "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
             "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
             "manual" | "Manual" => Ok(PerformanceLevel::Manual),
-            _ => Err(GpuControllerError::ParseError(
+            _ => Err(GpuHandleError::ParseError(
                 "unrecognized GPU power profile".to_string(),
             )),
         }
@@ -285,26 +285,26 @@ impl fmt::Display for PerformanceLevel {
 }
 
 #[derive(Debug)]
-pub enum GpuControllerError {
+pub enum GpuHandleError {
     NotAllowed(String),
     InvalidSysFS,
     ParseError(String),
     IoError(std::io::Error),
 }
 
-impl From<std::io::Error> for GpuControllerError {
+impl From<std::io::Error> for GpuHandleError {
     fn from(e: std::io::Error) -> Self {
         Self::IoError(e)
     }
 }
 
-impl Display for GpuControllerError {
+impl Display for GpuHandleError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&match self {
-            GpuControllerError::NotAllowed(info) => format!("not allowed: {info}"),
-            GpuControllerError::InvalidSysFS => "invalid SysFS".to_owned(),
-            GpuControllerError::ParseError(error) => format!("parse error: {error}"),
-            GpuControllerError::IoError(error) => format!("io error: {error}"),
+            GpuHandleError::NotAllowed(info) => format!("not allowed: {info}"),
+            GpuHandleError::InvalidSysFS => "invalid SysFS".to_owned(),
+            GpuHandleError::ParseError(error) => format!("parse error: {error}"),
+            GpuHandleError::IoError(error) => format!("io error: {error}"),
         })
     }
 }
