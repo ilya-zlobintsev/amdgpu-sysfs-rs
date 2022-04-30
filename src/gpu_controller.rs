@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    path::PathBuf,
+    str::FromStr,
+};
 
 use tokio::fs;
 
@@ -290,5 +295,16 @@ pub enum GpuControllerError {
 impl From<std::io::Error> for GpuControllerError {
     fn from(e: std::io::Error) -> Self {
         Self::IoError(e)
+    }
+}
+
+impl Display for GpuControllerError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&match self {
+            GpuControllerError::NotAllowed(info) => format!("not allowed: {info}"),
+            GpuControllerError::InvalidSysFS => "invalid SysFS".to_owned(),
+            GpuControllerError::ParseError(error) => format!("parse error: {error}"),
+            GpuControllerError::IoError(error) => format!("io error: {error}"),
+        })
     }
 }

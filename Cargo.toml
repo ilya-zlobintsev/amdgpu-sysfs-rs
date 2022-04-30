@@ -1,6 +1,6 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.4.6"
+version = "0.4.7"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
