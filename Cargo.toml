@@ -10,10 +10,8 @@ description = "Library for interacting with the Linux Kernel SysFS interface for
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["fs"] }
-async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["fs", "macros", "rt"] }
+pretty_assertions = "1.2.1"
 tempfile = "3.2"

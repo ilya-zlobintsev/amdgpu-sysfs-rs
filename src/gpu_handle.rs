@@ -1,11 +1,10 @@
 use std::{
     collections::HashMap,
     fmt::{self, Display},
+    fs,
     path::PathBuf,
     str::FromStr,
 };
-
-use tokio::fs;
 
 use crate::{hw_mon::HwMon, sysfs::SysFS};
 
@@ -23,18 +22,18 @@ impl GpuHandle {
     ///
     /// Normally, the path should look akin to `/sys/class/drm/card0/device`,
     /// and it needs to at least contain a `uevent` file.
-    pub async fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuHandleError> {
+    pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuHandleError> {
         let mut hw_monitors = Vec::new();
 
         if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
             for hw_mon_dir in hw_mons_iter.flatten() {
-                if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()).await {
+                if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()) {
                     hw_monitors.push(hw_mon);
                 }
             }
         }
 
-        let uevent_raw = fs::read_to_string(sysfs_path.join("uevent")).await?;
+        let uevent_raw = fs::read_to_string(sysfs_path.join("uevent"))?;
 
         let mut uevent = HashMap::new();
 
@@ -57,7 +56,7 @@ impl GpuHandle {
     }
 
     /// Gets the kernel driver used.
-    pub async fn get_driver(&self) -> &str {
+    pub fn get_driver(&self) -> &str {
         self.uevent.get("DRIVER").unwrap()
     }
 
@@ -81,23 +80,23 @@ impl GpuHandle {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
-    pub async fn get_current_link_speed(&self) -> Option<String> {
-        self.read_file("current_link_speed").await
+    pub fn get_current_link_speed(&self) -> Option<String> {
+        self.read_file("current_link_speed")
     }
 
-    pub async fn get_current_link_width(&self) -> Option<String> {
-        self.read_file("current_link_width").await
+    pub fn get_current_link_width(&self) -> Option<String> {
+        self.read_file("current_link_width")
     }
 
-    pub async fn get_max_link_speed(&self) -> Option<String> {
-        self.read_file("max_link_speed").await
+    pub fn get_max_link_speed(&self) -> Option<String> {
+        self.read_file("max_link_speed")
     }
-    pub async fn get_max_link_width(&self) -> Option<String> {
-        self.read_file("max_link_width").await
+    pub fn get_max_link_width(&self) -> Option<String> {
+        self.read_file("max_link_width")
     }
 
-    async fn read_vram_file(&self, file: &str) -> Option<u64> {
-        match self.read_file(file).await {
+    fn read_vram_file(&self, file: &str) -> Option<u64> {
+        match self.read_file(file) {
             Some(total_vram) => {
                 let total_vram = total_vram
                     .trim()
@@ -115,18 +114,18 @@ impl GpuHandle {
     }
 
     /// Gets total VRAM size in bytes. May not be reported on some devices, such as integrated GPUs.
-    pub async fn get_total_vram(&self) -> Option<u64> {
-        self.read_vram_file("mem_info_vram_total").await
+    pub fn get_total_vram(&self) -> Option<u64> {
+        self.read_vram_file("mem_info_vram_total")
     }
 
     /// Gets how much VRAM is currently used, in bytes. May not be reported on some devices, such as integrated GPUs.
-    pub async fn get_used_vram(&self) -> Option<u64> {
-        self.read_vram_file("mem_info_vram_used").await
+    pub fn get_used_vram(&self) -> Option<u64> {
+        self.read_vram_file("mem_info_vram_used")
     }
 
     /// Returns the GPU busy percentage.
-    pub async fn get_busy_percent(&self) -> Option<u8> {
-        self.read_file("gpu_busy_percent").await.map(|c| {
+    pub fn get_busy_percent(&self) -> Option<u8> {
+        self.read_file("gpu_busy_percent").map(|c| {
             c.trim()
                 .parse()
                 .expect("Unexpected GPU load percentage (driver bug?)")
@@ -134,14 +133,13 @@ impl GpuHandle {
     }
 
     /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
-    pub async fn get_vbios_version(&self) -> Option<String> {
-        self.read_file("vbios_version").await
+    pub fn get_vbios_version(&self) -> Option<String> {
+        self.read_file("vbios_version")
     }
 
     /// Returns the currently forced performance level.
-    pub async fn get_power_force_performance_level(&self) -> Option<PerformanceLevel> {
+    pub fn get_power_force_performance_level(&self) -> Option<PerformanceLevel> {
         self.read_file("power_dpm_force_performance_level")
-            .await
             .map(|power_level| {
                 PerformanceLevel::from_str(&power_level)
                     .expect("Unexpected power level (driver bug?)")
@@ -149,18 +147,16 @@ impl GpuHandle {
     }
 
     /// Forces a given performance level.
-    pub async fn set_power_force_performance_level(
+    pub fn set_power_force_performance_level(
         &self,
         level: PerformanceLevel,
     ) -> Result<(), GpuHandleError> {
-        Ok(self
-            .write_file("power_dpm_force_performance_level", level.to_string())
-            .await?)
+        Ok(self.write_file("power_dpm_force_performance_level", level.to_string())?)
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
-    pub async fn get_power_levels(&self, kind: PowerStateKind) -> Option<(Vec<String>, u8)> {
-        self.read_file(kind.to_filename()).await.map(|content| {
+    pub fn get_power_levels(&self, kind: PowerStateKind) -> Option<(Vec<String>, u8)> {
+        self.read_file(kind.to_filename()).map(|content| {
             let mut power_levels = Vec::new();
             let mut active = 0;
 
@@ -187,12 +183,12 @@ impl GpuHandle {
     /// Sets the enabled power levels for a power state kind to a given list of levels. This means that only the given power levels will be allowed.
     ///
     /// Can only be used if `power_force_performance_level` is set to `manual`.
-    pub async fn set_enabled_power_levels(
+    pub fn set_enabled_power_levels(
         &self,
         kind: PowerStateKind,
         levels: &[u8],
     ) -> Result<(), GpuHandleError> {
-        match self.get_power_force_performance_level().await {
+        match self.get_power_force_performance_level() {
             Some(PerformanceLevel::Manual) => {
                 let mut s = String::new();
 
@@ -201,7 +197,7 @@ impl GpuHandle {
                     s.push(' ');
                 }
 
-                Ok(self.write_file(kind.to_filename(), s).await?)
+                Ok(self.write_file(kind.to_filename(), s)?)
             }
             _ => Err(GpuHandleError::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"

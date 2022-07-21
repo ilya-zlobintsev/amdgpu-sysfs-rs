@@ -1,25 +1,22 @@
-use async_trait::async_trait;
-use std::path::Path;
-use tokio::fs;
+use std::{fs, path::Path};
 
-#[async_trait]
 pub trait SysFS {
     fn get_path(&self) -> &Path;
 
     /// Reads the content of a file in the SysFS.
-    async fn read_file(&self, file: &str) -> Option<String> {
-        match fs::read_to_string(self.get_path().join(file)).await {
+    fn read_file(&self, file: &str) -> Option<String> {
+        match fs::read_to_string(self.get_path().join(file)) {
             Ok(contents) => Some(contents.trim().to_owned()),
             Err(_) => None,
         }
     }
 
     /// Write to a file in the SysFS.
-    async fn write_file<C: AsRef<[u8]> + Send>(
+    fn write_file<C: AsRef<[u8]> + Send>(
         &self,
         file: &str,
         contents: C,
     ) -> Result<(), std::io::Error> {
-        fs::write(self.get_path().join(file), contents).await
+        fs::write(self.get_path().join(file), contents)
     }
 }
