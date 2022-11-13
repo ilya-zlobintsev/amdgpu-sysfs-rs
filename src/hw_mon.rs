@@ -5,6 +5,7 @@ use std::{
 
 use crate::sysfs::SysFS;
 use serde::{Deserialize, Serialize};
+use strum::FromRepr;
 
 /// Reprepesents a hardware monitor.
 /// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
@@ -140,16 +141,26 @@ impl HwMon {
             .map(|s| s.parse().expect("Unexpected fan1_target (driver bug?)"))
     }
 
+    /// Sets the desired fan speed in RPM.
+    pub fn set_fan_target(&self, target: usize) -> Result<(), std::io::Error> {
+        self.write_file("fan1_target", &target.to_string())
+    }
+
     /// Gets the pulse width modulation control method.
     pub fn get_fan_control_method(&self) -> Option<FanControlMethod> {
         self.read_file("pwm1_enable").map(|pwm1_enable| {
-            FanControlMethod::from_enable(
-                pwm1_enable
-                    .parse()
-                    .expect("Unexpected pwm1_enable (driver bug?)"),
-            )
-            .expect("Unexpected pwm1_enable (driver bug or unsupported?)")
+            let repr = pwm1_enable
+                .parse()
+                .expect("Unexpected pwm1_enable (driver bug?)");
+            FanControlMethod::from_repr(repr)
+                .expect("Unexpected pwm1_enable (driver bug or unsupported?)")
         })
+    }
+
+    /// Sets the fan control method.
+    pub fn set_fan_control_method(&self, method: FanControlMethod) -> Result<(), std::io::Error> {
+        let repr = method as u32;
+        self.write_file("pwm1_enable", &repr.to_string())
     }
 }
 
@@ -172,20 +183,9 @@ pub enum HwMonError {
     InvalidValue,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, FromRepr)]
 pub enum FanControlMethod {
-    None,
-    Auto,
-    Manual,
-}
-
-impl FanControlMethod {
-    pub fn from_enable(enable_value: u8) -> Result<Self, HwMonError> {
-        match enable_value {
-            0 => Ok(Self::None),
-            1 => Ok(Self::Manual),
-            2 => Ok(Self::Auto),
-            _ => Err(HwMonError::InvalidValue),
-        }
-    }
+    None = 0,
+    Manual = 1,
+    Auto = 2,
 }
