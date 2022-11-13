@@ -142,7 +142,7 @@ impl HwMon {
     }
 
     /// Sets the desired fan speed in RPM.
-    pub fn set_fan_target(&self, target: usize) -> Result<(), std::io::Error> {
+    pub fn set_fan_target(&self, target: u32) -> Result<(), std::io::Error> {
         self.write_file("fan1_target", &target.to_string())
     }
 
