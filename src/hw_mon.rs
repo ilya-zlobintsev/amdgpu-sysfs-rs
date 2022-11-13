@@ -170,20 +170,20 @@ impl SysFS for HwMon {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct Temperature {
     pub current: Option<f32>,
     pub crit: Option<f32>,
     pub crit_hyst: Option<f32>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum HwMonError {
     InvalidSysFS,
     InvalidValue,
 }
 
-#[derive(Clone, Serialize, Deserialize, FromRepr)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr)]
 pub enum FanControlMethod {
     None = 0,
     Manual = 1,

@@ -39,7 +39,7 @@ impl GpuHandle {
 
         for line in uevent_raw.trim().split('\n') {
             let (key, value) = line
-                .split_once("=")
+                .split_once('=')
                 .ok_or_else(|| GpuHandleError::ParseError("Missing =".to_string()))?;
 
             uevent.insert(key.to_owned(), value.to_owned());
