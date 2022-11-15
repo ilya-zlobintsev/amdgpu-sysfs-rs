@@ -1,5 +1,7 @@
-use crate::gpu_handle::{GpuHandle, PerformanceLevel};
-use crate::sysfs::SysFS;
+use amdgpu_sysfs::{
+    gpu_handle::{GpuHandle, PerformanceLevel},
+    sysfs::SysFS,
+};
 use pretty_assertions::assert_eq;
 use std::fs;
 use tempfile::tempdir;
