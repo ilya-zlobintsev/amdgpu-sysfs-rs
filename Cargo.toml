@@ -10,8 +10,7 @@ description = "Library for interacting with the Linux Kernel SysFS interface for
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "1", features = ["derive"] }
-strum = { version = "0.24.1", features = ["derive"] }
+serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"

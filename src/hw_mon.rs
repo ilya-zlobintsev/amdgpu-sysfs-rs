@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::sysfs::SysFS;
+#[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use strum::FromRepr;
 
 /// Reprepesents a hardware monitor.
 /// Hardware monitors are used to report real-time information about the device, such as temperatures and power usage.
@@ -170,7 +170,8 @@ impl SysFS for HwMon {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Temperature {
     pub current: Option<f32>,
     pub crit: Option<f32>,
@@ -183,9 +184,21 @@ pub enum HwMonError {
     InvalidValue,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRepr)]
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum FanControlMethod {
     None = 0,
     Manual = 1,
     Auto = 2,
+}
+
+impl FanControlMethod {
+    pub fn from_repr(repr: u32) -> Option<Self> {
+        match repr {
+            0 => Some(Self::None),
+            1 => Some(Self::Manual),
+            2 => Some(Self::Auto),
+            _ => None,
+        }
+    }
 }
