@@ -1,14 +1,11 @@
+pub mod error;
 pub mod overdrive;
 
-use std::{
-    collections::HashMap,
-    fmt::{self, Display},
-    fs,
-    path::PathBuf,
-    str::FromStr,
-};
-
+use self::error::GpuHandleError;
 use crate::{hw_mon::HwMon, sysfs::SysFS};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
 
 /// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
 #[derive(Clone, Debug)]
@@ -237,7 +234,8 @@ impl PowerStateKind {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum PerformanceLevel {
     Auto,
     Low,
@@ -279,30 +277,5 @@ impl fmt::Display for PerformanceLevel {
                 PerformanceLevel::Manual => "manual",
             }
         )
-    }
-}
-
-#[derive(Debug)]
-pub enum GpuHandleError {
-    NotAllowed(String),
-    InvalidSysFS,
-    ParseError(String),
-    IoError(std::io::Error),
-}
-
-impl From<std::io::Error> for GpuHandleError {
-    fn from(e: std::io::Error) -> Self {
-        Self::IoError(e)
-    }
-}
-
-impl Display for GpuHandleError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&match self {
-            GpuHandleError::NotAllowed(info) => format!("not allowed: {info}"),
-            GpuHandleError::InvalidSysFS => "invalid SysFS".to_owned(),
-            GpuHandleError::ParseError(error) => format!("parse error: {error}"),
-            GpuHandleError::IoError(error) => format!("io error: {error}"),
-        })
     }
 }
