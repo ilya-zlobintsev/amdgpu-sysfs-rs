@@ -95,21 +95,18 @@ impl GpuHandle {
     }
 
     fn read_vram_file(&self, file: &str) -> Option<u64> {
-        match self.read_file(file) {
-            Some(total_vram) => {
-                let total_vram = total_vram
-                    .trim()
-                    .parse()
-                    .expect("Unexpected VRAM amount (driver bug?)");
+        self.read_file(file).and_then(|vram| {
+            let parsed_vram = vram
+                .trim()
+                .parse()
+                .expect("Unexpected VRAM amount (driver bug?)");
 
-                if total_vram == 0 {
-                    None
-                } else {
-                    Some(total_vram)
-                }
+            if parsed_vram == 0 {
+                None
+            } else {
+                Some(parsed_vram)
             }
-            None => todo!(),
-        }
+        })
     }
 
     /// Gets total VRAM size in bytes. May not be reported on some devices, such as integrated GPUs.
