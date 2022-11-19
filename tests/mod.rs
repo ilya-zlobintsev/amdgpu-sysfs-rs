@@ -161,25 +161,24 @@ impl MockSysFS {
 
         fs::create_dir_all(hw_mon_path).unwrap();
 
-        mock.write_file("hwmon/hwmon1/name", "mock").unwrap();
-
-        mock.write_file("hwmon/hwmon1/pwm1", "255").unwrap();
-
-        mock.write_file("hwmon/hwmon1/fan1_max", "3200").unwrap();
-        mock.write_file("hwmon/hwmon1/fan1_min", "0").unwrap();
-
-        mock.write_file("hwmon/hwmon1/fan1_input", "1600").unwrap();
-        mock.write_file("hwmon/hwmon1/fan1_target", "1600").unwrap();
-
-        mock.write_file("hwmon/hwmon1/temp1_label", "edge").unwrap();
-
-        mock.write_file("hwmon/hwmon1/temp1_input", "44000")
-            .unwrap();
-        mock.write_file("hwmon/hwmon1/temp1_crit", "94000").unwrap();
-        mock.write_file("hwmon/hwmon1/temp1_crit_hyst", "-273150")
-            .unwrap();
-        mock.write_file("hwmon/hwmon1/in0_input", "975").unwrap();
-        mock.write_file("hwmon/hwmon1/in1_input", "975").unwrap();
+        let hwmon_files = [
+            ("name", "mock"),
+            ("pwm1", "255"),
+            ("fan1_max", "3200"),
+            ("fan1_min", "0"),
+            ("fan1_input", "1600"),
+            ("fan1_target", "1600"),
+            ("temp1_label", "edge"),
+            ("temp1_input", "44000"),
+            ("temp1_crit", "94000"),
+            ("temp1_crit_hyst", "-273150"),
+            ("in0_input", "975"),
+            ("in1_input", "975"),
+        ];
+        for (file, contents) in hwmon_files {
+            let full_file = format!("hwmon/hwmon1/{file}");
+            mock.write_file(&full_file, contents).unwrap();
+        }
 
         mock
     }
