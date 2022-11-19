@@ -1,8 +1,6 @@
-pub mod error;
 pub mod overdrive;
 
-use self::error::GpuHandleError;
-use crate::{hw_mon::HwMon, sysfs::SysFS};
+use crate::{error::Error, hw_mon::HwMon, sysfs::SysFS, Result};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
@@ -21,7 +19,7 @@ impl GpuHandle {
     ///
     /// Normally, the path should look akin to `/sys/class/drm/card0/device`,
     /// and it needs to at least contain a `uevent` file.
-    pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self, GpuHandleError> {
+    pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self> {
         let mut hw_monitors = Vec::new();
 
         if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
@@ -36,10 +34,10 @@ impl GpuHandle {
 
         let mut uevent = HashMap::new();
 
-        for line in uevent_raw.trim().split('\n') {
+        for (i, line) in uevent_raw.trim().split('\n').enumerate() {
             let (key, value) = line
                 .split_once('=')
-                .ok_or_else(|| GpuHandleError::ParseError("Missing =".to_string()))?;
+                .ok_or_else(|| Error::unexpected_eol("=", i))?;
 
             uevent.insert(key.to_owned(), value.to_owned());
         }
@@ -50,7 +48,7 @@ impl GpuHandle {
                 hw_monitors,
                 uevent,
             }),
-            None => Err(GpuHandleError::InvalidSysFS),
+            None => Err(Error::InvalidSysFS),
         }
     }
 
@@ -143,10 +141,7 @@ impl GpuHandle {
     }
 
     /// Forces a given performance level.
-    pub fn set_power_force_performance_level(
-        &self,
-        level: PerformanceLevel,
-    ) -> Result<(), GpuHandleError> {
+    pub fn set_power_force_performance_level(&self, level: PerformanceLevel) -> Result<()> {
         Ok(self.write_file("power_dpm_force_performance_level", level.to_string())?)
     }
 
@@ -179,11 +174,7 @@ impl GpuHandle {
     /// Sets the enabled power levels for a power state kind to a given list of levels. This means that only the given power levels will be allowed.
     ///
     /// Can only be used if `power_force_performance_level` is set to `manual`.
-    pub fn set_enabled_power_levels(
-        &self,
-        kind: PowerStateKind,
-        levels: &[u8],
-    ) -> Result<(), GpuHandleError> {
+    pub fn set_enabled_power_levels(&self, kind: PowerStateKind, levels: &[u8]) -> Result<()> {
         match self.get_power_force_performance_level() {
             Some(PerformanceLevel::Manual) => {
                 let mut s = String::new();
@@ -195,7 +186,7 @@ impl GpuHandle {
 
                 Ok(self.write_file(kind.to_filename(), s)?)
             }
-            _ => Err(GpuHandleError::NotAllowed(
+            _ => Err(Error::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
                     .to_string(),
             )),
@@ -247,17 +238,18 @@ impl Default for PerformanceLevel {
 }
 
 impl FromStr for PerformanceLevel {
-    type Err = GpuHandleError;
+    type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "auto" | "Automatic" => Ok(PerformanceLevel::Auto),
             "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
             "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
             "manual" | "Manual" => Ok(PerformanceLevel::Manual),
-            _ => Err(GpuHandleError::ParseError(
-                "unrecognized GPU power profile".to_string(),
-            )),
+            _ => Err(Error::ParseError {
+                msg: "unrecognized GPU power profile".to_string(),
+                line: 1,
+            }),
         }
     }
 }
