@@ -1,6 +1,11 @@
 pub mod overdrive;
 
-use crate::{error::Error, hw_mon::HwMon, sysfs::SysFS, Result};
+use crate::{
+    error::{Error, ErrorContext, ErrorKind},
+    hw_mon::HwMon,
+    sysfs::SysFS,
+    Result,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
@@ -48,7 +53,7 @@ impl GpuHandle {
                 hw_monitors,
                 uevent,
             }),
-            None => Err(Error::InvalidSysFS),
+            None => Err(ErrorKind::InvalidSysFS.into()),
         }
     }
 
@@ -77,67 +82,51 @@ impl GpuHandle {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
-    pub fn get_current_link_speed(&self) -> Option<String> {
-        self.read_file("current_link_speed")
+    pub fn get_current_link_speed(&self) -> Result<String> {
+        Ok(self.read_file("current_link_speed")?)
     }
 
-    pub fn get_current_link_width(&self) -> Option<String> {
-        self.read_file("current_link_width")
+    pub fn get_current_link_width(&self) -> Result<String> {
+        Ok(self.read_file("current_link_width")?)
     }
 
-    pub fn get_max_link_speed(&self) -> Option<String> {
-        self.read_file("max_link_speed")
+    pub fn get_max_link_speed(&self) -> Result<String> {
+        Ok(self.read_file("max_link_speed")?)
     }
-    pub fn get_max_link_width(&self) -> Option<String> {
-        self.read_file("max_link_width")
+    pub fn get_max_link_width(&self) -> Result<String> {
+        Ok(self.read_file("max_link_width")?)
     }
 
-    fn read_vram_file(&self, file: &str) -> Option<u64> {
-        self.read_file(file).and_then(|vram| {
-            let parsed_vram = vram
-                .trim()
-                .parse()
-                .expect("Unexpected VRAM amount (driver bug?)");
-
-            if parsed_vram == 0 {
-                None
-            } else {
-                Some(parsed_vram)
-            }
-        })
+    fn read_vram_file(&self, file: &str) -> Result<u64> {
+        let raw_vram = self.read_file(file)?;
+        Ok(raw_vram.parse()?)
     }
 
     /// Gets total VRAM size in bytes. May not be reported on some devices, such as integrated GPUs.
-    pub fn get_total_vram(&self) -> Option<u64> {
-        self.read_vram_file("mem_info_vram_total")
+    pub fn get_total_vram(&self) -> Result<u64> {
+        Ok(self.read_vram_file("mem_info_vram_total")?)
     }
 
     /// Gets how much VRAM is currently used, in bytes. May not be reported on some devices, such as integrated GPUs.
-    pub fn get_used_vram(&self) -> Option<u64> {
-        self.read_vram_file("mem_info_vram_used")
+    pub fn get_used_vram(&self) -> Result<u64> {
+        Ok(self.read_vram_file("mem_info_vram_used")?)
     }
 
     /// Returns the GPU busy percentage.
-    pub fn get_busy_percent(&self) -> Option<u8> {
-        self.read_file("gpu_busy_percent").map(|c| {
-            c.trim()
-                .parse()
-                .expect("Unexpected GPU load percentage (driver bug?)")
-        })
+    pub fn get_busy_percent(&self) -> Result<u8> {
+        let raw_busy = self.read_file("gpu_busy_percent")?;
+        Ok(raw_busy.parse()?)
     }
 
     /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
-    pub fn get_vbios_version(&self) -> Option<String> {
-        self.read_file("vbios_version")
+    pub fn get_vbios_version(&self) -> Result<String> {
+        Ok(self.read_file("vbios_version")?)
     }
 
     /// Returns the currently forced performance level.
-    pub fn get_power_force_performance_level(&self) -> Option<PerformanceLevel> {
-        self.read_file("power_dpm_force_performance_level")
-            .map(|power_level| {
-                PerformanceLevel::from_str(&power_level)
-                    .expect("Unexpected power level (driver bug?)")
-            })
+    pub fn get_power_force_performance_level(&self) -> Result<PerformanceLevel> {
+        let raw_level = self.read_file("power_dpm_force_performance_level")?;
+        PerformanceLevel::from_str(&raw_level)
     }
 
     /// Forces a given performance level.
@@ -146,8 +135,8 @@ impl GpuHandle {
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
-    pub fn get_power_levels(&self, kind: PowerStateKind) -> Option<(Vec<String>, u8)> {
-        self.read_file(kind.to_filename()).map(|content| {
+    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<(Vec<String>, u8)> {
+        self.read_file(kind.to_filename()).and_then(|content| {
             let mut power_levels = Vec::new();
             let mut active = 0;
 
@@ -159,7 +148,7 @@ impl GpuHandle {
                         active = identifier
                             .trim()
                             .parse()
-                            .expect("Unexpected power level identifier");
+                            .context("Unexpected power level identifier")?;
                     }
                 }
                 if let Some(s) = line.split(':').last() {
@@ -167,7 +156,7 @@ impl GpuHandle {
                 }
             }
 
-            (power_levels, active)
+            Ok((power_levels, active))
         })
     }
 
@@ -175,8 +164,8 @@ impl GpuHandle {
     ///
     /// Can only be used if `power_force_performance_level` is set to `manual`.
     pub fn set_enabled_power_levels(&self, kind: PowerStateKind, levels: &[u8]) -> Result<()> {
-        match self.get_power_force_performance_level() {
-            Some(PerformanceLevel::Manual) => {
+        match self.get_power_force_performance_level()? {
+            PerformanceLevel::Manual => {
                 let mut s = String::new();
 
                 for l in levels {
@@ -186,10 +175,11 @@ impl GpuHandle {
 
                 Ok(self.write_file(kind.to_filename(), s)?)
             }
-            _ => Err(Error::NotAllowed(
+            _ => Err(ErrorKind::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
                     .to_string(),
-            )),
+            )
+            .into()),
         }
     }
 }
@@ -246,10 +236,11 @@ impl FromStr for PerformanceLevel {
             "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
             "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
             "manual" | "Manual" => Ok(PerformanceLevel::Manual),
-            _ => Err(Error::ParseError {
+            _ => Err(ErrorKind::ParseError {
                 msg: "unrecognized GPU power profile".to_string(),
                 line: 1,
-            }),
+            }
+            .into()),
         }
     }
 }

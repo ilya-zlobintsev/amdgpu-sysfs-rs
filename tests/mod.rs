@@ -29,9 +29,9 @@ fn get_ids() {
 fn get_usage() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
 
-    assert_eq!(gpu_handle.get_busy_percent(), Some(100));
-    assert_eq!(gpu_handle.get_total_vram(), Some(512 * 1024 * 1024));
-    assert_eq!(gpu_handle.get_used_vram(), Some(256 * 1024 * 1024));
+    assert_eq!(gpu_handle.get_busy_percent().unwrap(), 100);
+    assert_eq!(gpu_handle.get_total_vram().unwrap(), 512 * 1024 * 1024);
+    assert_eq!(gpu_handle.get_used_vram().unwrap(), 256 * 1024 * 1024);
 }
 
 #[test]
@@ -39,8 +39,8 @@ fn get_bios() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
 
     assert_eq!(
-        gpu_handle.get_vbios_version(),
-        Some("MOCKFS-VBIOS".to_string())
+        gpu_handle.get_vbios_version().unwrap(),
+        "MOCKFS-VBIOS".to_string()
     );
 }
 
@@ -49,8 +49,8 @@ fn get_performance_level() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
 
     assert_eq!(
-        gpu_handle.get_power_force_performance_level(),
-        Some(PerformanceLevel::Auto)
+        gpu_handle.get_power_force_performance_level().unwrap(),
+        PerformanceLevel::Auto
     );
 }
 
@@ -59,10 +59,10 @@ fn get_link() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
 
     assert_eq!(
-        gpu_handle.get_current_link_speed(),
-        Some("8.0 GT/s PCIe".to_string())
+        gpu_handle.get_current_link_speed().unwrap(),
+        "8.0 GT/s PCIe".to_string()
     );
-    assert_eq!(gpu_handle.get_max_link_width(), Some("16".to_string()));
+    assert_eq!(gpu_handle.get_max_link_width().unwrap(), "16".to_string());
 }
 
 #[test]
@@ -70,13 +70,13 @@ fn get_fan_info() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
     let hw_mon = gpu_handle.hw_monitors.first().unwrap();
 
-    assert_eq!(hw_mon.get_fan_pwm(), Some(255));
+    assert_eq!(hw_mon.get_fan_pwm().unwrap(), 255);
 
-    assert_eq!(hw_mon.get_fan_current(), Some(1600));
-    assert_eq!(hw_mon.get_fan_target(), Some(1600));
+    assert_eq!(hw_mon.get_fan_current().unwrap(), 1600);
+    assert_eq!(hw_mon.get_fan_target().unwrap(), 1600);
 
-    assert_eq!(hw_mon.get_fan_max(), Some(3200));
-    assert_eq!(hw_mon.get_fan_min(), Some(0));
+    assert_eq!(hw_mon.get_fan_max().unwrap(), 3200);
+    assert_eq!(hw_mon.get_fan_min().unwrap(), 0);
 }
 
 #[test]

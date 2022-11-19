@@ -1,8 +1,8 @@
 //! The format used by Vega10 and older GPUs.
 use super::{AllowedRanges, Range};
 use crate::error::Error;
+use crate::error::ErrorKind::ParseError;
 use std::str::{FromStr, SplitWhitespace};
-use Error::ParseError;
 
 #[derive(Debug, Clone)]
 pub struct Table {
@@ -58,7 +58,8 @@ impl FromStr for Table {
                                 return Err(ParseError {
                                     msg: format!("Unexpected range item: {other}"),
                                     line: i,
-                                })
+                                }
+                                .into())
                             }
                         }
                     }
@@ -66,7 +67,8 @@ impl FromStr for Table {
                         return Err(ParseError {
                             msg: "Could not find section".to_owned(),
                             line: i,
-                        })
+                        }
+                        .into())
                     }
                 },
             }
@@ -101,7 +103,8 @@ fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Resul
         return Err(ParseError {
             msg: format!("Unexpected level num: expected {len}, got {num}"),
             line: i,
-        });
+        }
+        .into());
     }
 
     levels.push(level);
@@ -151,9 +154,12 @@ where
         text = text.trim_end_matches(suffix);
     }
 
-    text.parse().map_err(|err| ParseError {
-        msg: format!("Could not parse {item}: {err}"),
-        line: i,
+    text.parse().map_err(|err| {
+        ParseError {
+            msg: format!("Could not parse {item}: {err}"),
+            line: i,
+        }
+        .into()
     })
 }
 
