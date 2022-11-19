@@ -90,6 +90,24 @@ fn get_temperatures() {
     assert_eq!(temperatures["edge"].crit_hyst, Some(-273.150));
 }
 
+#[test]
+fn get_gpu_voltage() {
+    let (gpu_handle, _mockfs) = create_mock_gpu_handle();
+    let hw_mon = gpu_handle.hw_monitors.first().unwrap();
+    let voltage = hw_mon.get_gpu_voltage().unwrap();
+
+    assert_eq!(voltage, 975);
+}
+
+#[test]
+fn get_northbridge_voltage() {
+    let (gpu_handle, _mockfs) = create_mock_gpu_handle();
+    let hw_mon = gpu_handle.hw_monitors.first().unwrap();
+    let voltage = hw_mon.get_northbirdge_voltage().unwrap();
+
+    assert_eq!(voltage, 975);
+}
+
 #[derive(Debug)]
 struct MockSysFS {
     temp_dir: tempfile::TempDir,
@@ -160,6 +178,8 @@ impl MockSysFS {
         mock.write_file("hwmon/hwmon1/temp1_crit", "94000").unwrap();
         mock.write_file("hwmon/hwmon1/temp1_crit_hyst", "-273150")
             .unwrap();
+        mock.write_file("hwmon/hwmon1/in0_input", "975").unwrap();
+        mock.write_file("hwmon/hwmon1/in1_input", "975").unwrap();
 
         mock
     }

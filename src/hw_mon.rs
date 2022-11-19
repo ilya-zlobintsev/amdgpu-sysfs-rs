@@ -165,6 +165,16 @@ impl HwMon {
         self.write_file("pwm1_enable", &repr.to_string())?;
         Ok(())
     }
+
+    /// Gets the GPU voltage in millivolts.
+    pub fn get_gpu_voltage(&self) -> Result<u64> {
+        self.read_file_parsed("in0_input")
+    }
+
+    /// Gets the north bridge voltage in millivolts.
+    pub fn get_northbirdge_voltage(&self) -> Result<u64> {
+        self.read_file_parsed("in1_input")
+    }
 }
 
 impl SysFS for HwMon {

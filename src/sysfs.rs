@@ -1,5 +1,8 @@
-use crate::{error::ErrorContext, Result};
-use std::{fs, path::Path};
+use crate::{
+    error::{Error, ErrorContext},
+    Result,
+};
+use std::{fs, path::Path, str::FromStr};
 
 pub trait SysFS {
     fn get_path(&self) -> &Path;
@@ -10,6 +13,15 @@ pub trait SysFS {
             .with_context(|| format!("Could not read file {file}"))?
             .trim()
             .to_owned())
+    }
+
+    /// Reads the content of a file and then parses it
+    fn read_file_parsed<T: FromStr<Err = E>, E: ToString>(&self, file: &str) -> Result<T> {
+        fs::read_to_string(self.get_path().join(file))
+            .with_context(|| format!("Could not read file {file}"))?
+            .trim()
+            .parse()
+            .map_err(|err: E| Error::basic_parse_error(err.to_string()))
     }
 
     /// Write to a file in the SysFS.
