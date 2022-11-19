@@ -103,7 +103,7 @@ fn get_gpu_voltage() {
 fn get_northbridge_voltage() {
     let (gpu_handle, _mockfs) = create_mock_gpu_handle();
     let hw_mon = gpu_handle.hw_monitors.first().unwrap();
-    let voltage = hw_mon.get_northbirdge_voltage().unwrap();
+    let voltage = hw_mon.get_northbridge_voltage().unwrap();
 
     assert_eq!(voltage, 975);
 }

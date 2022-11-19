@@ -172,7 +172,7 @@ impl HwMon {
     }
 
     /// Gets the north bridge voltage in millivolts.
-    pub fn get_northbirdge_voltage(&self) -> Result<u64> {
+    pub fn get_northbridge_voltage(&self) -> Result<u64> {
         self.read_file_parsed("in1_input")
     }
 }
