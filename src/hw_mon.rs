@@ -95,8 +95,8 @@ impl HwMon {
 
     /// Sets the current power cap of the GPU in watts.
     pub fn set_power_cap(&self, cap: f64) -> Result<()> {
-        let contents = (cap * 1000000.0).to_string();
-        self.write_file("power1_cap", contents)
+        let value = (cap * 1000000.0).round() as i64;
+        self.write_file("power1_cap", value.to_string())
     }
 
     /// Gets the maximum possible power cap for the GPU in watts. If overclocking is disabled, this is probably the same as the default cap.
