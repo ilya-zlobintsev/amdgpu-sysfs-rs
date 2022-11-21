@@ -6,7 +6,7 @@ This library allows you to interact with the Linux Kernel SysFS interface for GP
 
 Basic usage:
 
-```rust
+```rust,no_run
 use amdgpu_sysfs::gpu_handle::GpuHandle;
 # use std::path::PathBuf;
 
