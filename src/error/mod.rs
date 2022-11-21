@@ -7,7 +7,7 @@ use std::{
     num::{ParseFloatError, ParseIntError},
 };
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Error {
     pub context: Option<String>,
     pub kind: ErrorKind,
@@ -96,5 +96,14 @@ impl From<ParseIntError> for Error {
 impl From<ParseFloatError> for Error {
     fn from(err: ParseFloatError) -> Self {
         Self::basic_parse_error(err.to_string())
+    }
+}
+
+impl PartialEq for ErrorKind {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::IoError(l0), Self::IoError(r0)) => l0.kind() == r0.kind(),
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
+        }
     }
 }

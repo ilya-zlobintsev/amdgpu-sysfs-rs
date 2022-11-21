@@ -14,4 +14,5 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
 pretty_assertions = "1.2.1"
+rust-embed = "6.4.2"
 tempfile = "3.3"

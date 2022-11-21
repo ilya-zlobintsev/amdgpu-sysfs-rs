@@ -189,7 +189,7 @@ impl SysFS for HwMon {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Temperature {
     pub current: Option<f32>,
