@@ -83,18 +83,18 @@ impl GpuHandle {
     }
 
     pub fn get_current_link_speed(&self) -> Result<String> {
-        Ok(self.read_file("current_link_speed")?)
+        self.read_file("current_link_speed")
     }
 
     pub fn get_current_link_width(&self) -> Result<String> {
-        Ok(self.read_file("current_link_width")?)
+        self.read_file("current_link_width")
     }
 
     pub fn get_max_link_speed(&self) -> Result<String> {
-        Ok(self.read_file("max_link_speed")?)
+        self.read_file("max_link_speed")
     }
     pub fn get_max_link_width(&self) -> Result<String> {
-        Ok(self.read_file("max_link_width")?)
+        self.read_file("max_link_width")
     }
 
     fn read_vram_file(&self, file: &str) -> Result<u64> {
@@ -104,12 +104,12 @@ impl GpuHandle {
 
     /// Gets total VRAM size in bytes. May not be reported on some devices, such as integrated GPUs.
     pub fn get_total_vram(&self) -> Result<u64> {
-        Ok(self.read_vram_file("mem_info_vram_total")?)
+        self.read_vram_file("mem_info_vram_total")
     }
 
     /// Gets how much VRAM is currently used, in bytes. May not be reported on some devices, such as integrated GPUs.
     pub fn get_used_vram(&self) -> Result<u64> {
-        Ok(self.read_vram_file("mem_info_vram_used")?)
+        self.read_vram_file("mem_info_vram_used")
     }
 
     /// Returns the GPU busy percentage.
@@ -120,7 +120,7 @@ impl GpuHandle {
 
     /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
     pub fn get_vbios_version(&self) -> Result<String> {
-        Ok(self.read_file("vbios_version")?)
+        self.read_file("vbios_version")
     }
 
     /// Returns the currently forced performance level.
@@ -131,7 +131,7 @@ impl GpuHandle {
 
     /// Forces a given performance level.
     pub fn set_power_force_performance_level(&self, level: PerformanceLevel) -> Result<()> {
-        Ok(self.write_file("power_dpm_force_performance_level", level.to_string())?)
+        self.write_file("power_dpm_force_performance_level", level.to_string())
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.

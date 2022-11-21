@@ -7,7 +7,10 @@ This library allows you to interact with the Linux Kernel SysFS interface for GP
 Basic usage:
 
 ```rust
-let sysfs_path = PathBuf::from_str("/sys/class/drm/card0/device").unwrap();
+use amdgpu_sysfs::gpu_handle::GpuHandle;
+# use std::path::PathBuf;
+
+let sysfs_path = PathBuf::from("/sys/class/drm/card0/device");
 
 let gpu_handle = GpuHandle::new_from_path(sysfs_path).unwrap();
     
