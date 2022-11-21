@@ -1,25 +1,31 @@
-use async_trait::async_trait;
-use std::path::Path;
-use tokio::fs;
+use crate::{
+    error::{Error, ErrorContext},
+    Result,
+};
+use std::{fs, path::Path, str::FromStr};
 
-#[async_trait]
 pub trait SysFS {
     fn get_path(&self) -> &Path;
 
-    /// Reads the content of a file in the SysFS.
-    async fn read_file(&self, file: &str) -> Option<String> {
-        match fs::read_to_string(self.get_path().join(file)).await {
-            Ok(contents) => Some(contents.trim().to_owned()),
-            Err(_) => None,
-        }
+    /// Reads the content of a file in the `SysFs`.
+    fn read_file(&self, file: &str) -> Result<String> {
+        Ok(fs::read_to_string(self.get_path().join(file))
+            .with_context(|| format!("Could not read file {file}"))?
+            .trim()
+            .to_owned())
     }
 
-    /// Write to a file in the SysFS.
-    async fn write_file<C: AsRef<[u8]> + Send>(
-        &self,
-        file: &str,
-        contents: C,
-    ) -> Result<(), std::io::Error> {
-        fs::write(self.get_path().join(file), contents).await
+    /// Reads the content of a file and then parses it
+    fn read_file_parsed<T: FromStr<Err = E>, E: ToString>(&self, file: &str) -> Result<T> {
+        fs::read_to_string(self.get_path().join(file))
+            .with_context(|| format!("Could not read file {file}"))?
+            .trim()
+            .parse()
+            .map_err(|err: E| Error::basic_parse_error(err.to_string()))
+    }
+
+    /// Write to a file in the `SysFs`.
+    fn write_file<C: AsRef<[u8]> + Send>(&self, file: &str, contents: C) -> Result<()> {
+        Ok(fs::write(self.get_path().join(file), contents)?)
     }
 }
