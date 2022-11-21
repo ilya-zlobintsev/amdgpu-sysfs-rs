@@ -59,5 +59,8 @@ test_with_hw_mon! {
     },
     gpu_voltage => {
         HwMon::get_gpu_voltage, Ok(975)
-    }
+    },
+    pwm => {
+        HwMon::get_fan_pwm, Ok(35),
+    },
 }
