@@ -1,22 +1,36 @@
 //! The format used by Vega10 and older GPUs.
-use super::{AllowedRanges, Range};
+use super::{AllowedRanges, PowerTable, Range};
 use crate::error::Error;
 use crate::error::ErrorKind::ParseError;
-use std::str::{FromStr, SplitWhitespace};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+use std::{
+    io::Write,
+    str::{FromStr, SplitWhitespace},
+};
 
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Table {
     pub sclk_levels: Vec<ClocksLevel>,
     pub mclk_levels: Vec<ClocksLevel>,
     pub allowed_ranges: AllowedRanges,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ClocksLevel {
-    /// Clockspeed (in MHz)
-    pub clockspeed: u32,
-    /// Voltage (in mV)
-    pub voltage: u32,
+impl PowerTable for Table {
+    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+        for (i, level) in self.sclk_levels.iter().enumerate() {
+            let command = level_command(*level, i, 's');
+            writer.write_all(command.as_bytes())?;
+        }
+
+        for (i, level) in self.mclk_levels.iter().enumerate() {
+            let command = level_command(*level, i, 'm');
+            writer.write_all(command.as_bytes())?;
+        }
+
+        Ok(())
+    }
 }
 
 impl FromStr for Table {
@@ -32,11 +46,7 @@ impl FromStr for Table {
         let mut current_section = None;
 
         let mut i = 1;
-        for line in s
-            .lines()
-            .map(|line| line.trim())
-            .filter(|line| !line.is_empty())
-        {
+        for line in s.lines().map(str::trim).filter(|line| !line.is_empty()) {
             match line {
                 "OD_SCLK:" => current_section = Some(Section::Sclk),
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
@@ -93,6 +103,15 @@ impl FromStr for Table {
             allowed_ranges,
         })
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ClocksLevel {
+    /// Clockspeed (in MHz)
+    pub clockspeed: u32,
+    /// Voltage (in mV)
+    pub voltage: u32,
 }
 
 fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Result<(), Error> {
@@ -163,6 +182,14 @@ where
     })
 }
 
+fn level_command(level: ClocksLevel, i: usize, symbol: char) -> String {
+    let ClocksLevel {
+        clockspeed,
+        voltage,
+    } = level;
+    format!("{symbol} {i} {clockspeed} {voltage}\n")
+}
+
 #[derive(PartialEq)]
 enum Section {
     Sclk,
@@ -172,11 +199,30 @@ enum Section {
 
 #[cfg(test)]
 mod tests {
-    use crate::gpu_handle::overdrive::{AllowedRanges, Range};
-
     use super::{parse_level_line, parse_range_line, ClocksLevel, Table};
+    use crate::gpu_handle::overdrive::{AllowedRanges, PowerTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
+
+    const TABLE: &str = r#"
+            OD_SCLK:
+            0:        300MHz        750mV
+            1:        600MHz        769mV
+            2:        900MHz        912mV
+            3:       1145MHz       1125mV
+            4:       1215MHz       1150mV
+            5:       1257MHz       1150mV
+            6:       1300MHz       1150mV
+            7:       1366MHz       1150mV
+            OD_MCLK:
+            0:        300MHz        750mV
+            1:       1000MHz        825mV
+            2:       1750MHz        975mV
+            OD_RANGE:
+            SCLK:     300MHz       2000MHz
+            MCLK:     300MHz       2250MHz
+            VDDC:     750mV        1200mV
+        "#;
 
     #[test]
     fn parse_level_line_basic() {
@@ -198,26 +244,7 @@ mod tests {
 
     #[test]
     fn parse_full_table() {
-        let data = r#"
-            OD_SCLK:
-            0:        300MHz        750mV
-            1:        600MHz        769mV
-            2:        900MHz        912mV
-            3:       1145MHz       1125mV
-            4:       1215MHz       1150mV
-            5:       1257MHz       1150mV
-            6:       1300MHz       1150mV
-            7:       1366MHz       1150mV
-            OD_MCLK:
-            0:        300MHz        750mV
-            1:       1000MHz        825mV
-            2:       1750MHz        975mV
-            OD_RANGE:
-            SCLK:     300MHz       2000MHz
-            MCLK:     300MHz       2250MHz
-            VDDC:     750mV        1200mV
-        "#;
-        let table = Table::from_str(data).unwrap();
+        let table = Table::from_str(TABLE).unwrap();
 
         let sclk_levels = [
             (300, 750),
@@ -256,5 +283,31 @@ mod tests {
         assert_eq!(table.sclk_levels, sclk_levels);
         assert_eq!(table.mclk_levels, mclk_levels);
         assert_eq!(table.allowed_ranges, ranges);
+    }
+
+    #[test]
+    fn table_into_commands() {
+        let table = Table::from_str(TABLE).unwrap();
+        let mut buf = Vec::new();
+        table.write_commands(&mut buf).unwrap();
+        let commands = String::from_utf8(buf).unwrap();
+
+        let mut expected_commands = [
+            "s 0 300 750",
+            "s 1 600 769",
+            "s 2 900 912",
+            "s 3 1145 1125",
+            "s 4 1215 1150",
+            "s 5 1257 1150",
+            "s 6 1300 1150",
+            "s 7 1366 1150",
+            "m 0 300 750",
+            "m 1 1000 825",
+            "m 2 1750 975",
+        ]
+        .join("\n");
+        expected_commands.push('\n');
+
+        assert_eq!(commands, expected_commands);
     }
 }

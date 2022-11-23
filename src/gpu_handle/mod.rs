@@ -1,5 +1,6 @@
 pub mod overdrive;
 
+use self::overdrive::{PowerTable, PowerTableGen, PowerTableHandle};
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
     hw_mon::HwMon,
@@ -8,7 +9,14 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    fs::{self, File},
+    io::BufWriter,
+    path::PathBuf,
+    str::FromStr,
+};
 
 /// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
 #[derive(Clone, Debug)]
@@ -181,6 +189,21 @@ impl GpuHandle {
             )
             .into()),
         }
+    }
+
+    pub fn read_power_table(&self) -> Result<PowerTableGen> {
+        self.read_file_parsed("pp_od_clk_voltage")
+    }
+
+    #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
+    pub fn set_power_table(&self, table: &PowerTableGen) -> Result<PowerTableHandle> {
+        let path = self.sysfs_path.join("pp_od_clk_voltage");
+        let file = File::open(path)?;
+        let mut writer = BufWriter::new(file);
+
+        table.write_commands(&mut writer)?;
+
+        Ok(PowerTableHandle::new(writer))
     }
 }
 
