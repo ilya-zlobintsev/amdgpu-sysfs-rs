@@ -1,3 +1,4 @@
+//! SysFS errors
 mod context;
 
 pub(crate) use context::ErrorContext;
@@ -8,22 +9,35 @@ use std::{
 };
 
 #[derive(Debug, PartialEq)]
+/// An error that can happen when working with the SysFs
 pub struct Error {
-    pub context: Option<String>,
+    context: Option<String>,
+    /// The error kind
     pub kind: ErrorKind,
 }
 
+/// Possible types of errors
 #[derive(Debug)]
 pub enum ErrorKind {
+    /// It is not allowed to perform the given action
     NotAllowed(String),
+    /// Something is potentially unsupported by this library
     Unsupported(String),
+    /// The given path is not a valid SysFs
     InvalidSysFS,
-    ParseError { msg: String, line: usize },
+    /// An error that happens during parsing
+    ParseError {
+        /// What went wrong during parsing
+        msg: String,
+        /// The line where the error occured
+        line: usize,
+    },
+    /// An IO error
     IoError(std::io::Error),
 }
 
 impl Error {
-    pub fn unexpected_eol<T: Display>(expected_item: T, line: usize) -> Self {
+    pub(crate) fn unexpected_eol<T: Display>(expected_item: T, line: usize) -> Self {
         Self {
             context: None,
             kind: ErrorKind::ParseError {
@@ -33,13 +47,14 @@ impl Error {
         }
     }
 
-    pub fn basic_parse_error(msg: String) -> Self {
+    pub(crate) fn basic_parse_error(msg: String) -> Self {
         Self {
             context: None,
             kind: ErrorKind::ParseError { msg, line: 1 },
         }
     }
 
+    /// If the error means that the file doesn't exist
     pub fn is_not_found(&self) -> bool {
         matches!(&self.kind, ErrorKind::IoError(io_err) if io_err.kind() == std::io::ErrorKind::NotFound)
     }
