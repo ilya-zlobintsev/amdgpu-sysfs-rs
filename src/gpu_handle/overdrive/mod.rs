@@ -16,6 +16,7 @@ pub trait PowerTable: FromStr {
 /// Representation of `pp_od_clk_voltage`
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(tag = "kind", content = "data"))]
 pub enum PowerTableGen {
     Gen1(gen1::Table),
 }
