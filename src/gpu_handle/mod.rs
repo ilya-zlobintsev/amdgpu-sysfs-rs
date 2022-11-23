@@ -191,10 +191,13 @@ impl GpuHandle {
         }
     }
 
-    pub fn read_power_table(&self) -> Result<PowerTableGen> {
+    /// Reads the power table from `pp_od_clk_voltage`.
+    pub fn get_power_table(&self) -> Result<PowerTableGen> {
         self.read_file_parsed("pp_od_clk_voltage")
     }
 
+    /// Writes the given power table to `pp_od_clk_voltage` and returns a handle.
+    /// The handle must then be used to either commit or reset the changes.
     #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
     pub fn set_power_table(&self, table: &PowerTableGen) -> Result<PowerTableHandle> {
         let path = self.sysfs_path.join("pp_od_clk_voltage");
