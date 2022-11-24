@@ -1,3 +1,4 @@
+//! The format used by Vega20 and newer GPUs.
 use super::{
     parse_line_item, parse_range_line, push_level_line, AllowedRanges, ClocksLevel, ClocksTable,
     Range,
@@ -10,12 +11,17 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{io::Write, str::FromStr};
 
+/// Vega20 clocks table.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Table {
+    /// The current core clock range.
     pub current_sclk_range: Range,
+    /// The current memory clock range.
     pub current_mclk_range: Range,
+    /// The current voltage curve. May be empty if the GPU does not support it.
     pub vddc_curve: Vec<ClocksLevel>,
+    /// The allowed ranges for clockspeeds.
     pub allowed_ranges: AllowedRanges,
 }
 

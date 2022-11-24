@@ -1,3 +1,6 @@
+//! GPU overdrive (overclocking)
+//!
+//! <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
 pub mod vega10;
 pub mod vega20;
 
@@ -13,11 +16,15 @@ use std::{
     str::{FromStr, SplitWhitespace},
 };
 
+/// Shared functionality across all table formats.
 pub trait ClocksTable: FromStr {
+    /// Writes commands needed to apply the state that is in the table struct on the GPU.
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
 
+    /// Gets the current maximum core clock.
     fn get_max_sclk(&self) -> Option<u32>;
 
+    /// Gets the current maximum memory clock.
     fn get_max_mclk(&self) -> Option<u32>;
 }
 
@@ -29,7 +36,9 @@ pub trait ClocksTable: FromStr {
     serde(tag = "kind", content = "data", rename_all = "snake_case")
 )]
 pub enum ClocksTableGen {
+    /// Vega10 (and older) format
     Vega10(vega10::Table),
+    /// Vega20 (and newer) format
     Vega20(vega20::Table),
 }
 
@@ -113,6 +122,7 @@ where
     })
 }
 
+/// The ranges which the GPU allows to be used.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AllowedRanges {
@@ -124,14 +134,18 @@ pub struct AllowedRanges {
     pub vddc: Option<Range>,
 }
 
+/// A range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Range {
+    /// The lower value of a range.
     pub min: Option<u32>,
+    /// The higher value of a range.
     pub max: Option<u32>,
 }
 
 impl Range {
+    /// Creates a range with both a minimum and a maximum value.
     pub fn full(min: u32, max: u32) -> Self {
         Self {
             min: Some(min),
@@ -139,6 +153,7 @@ impl Range {
         }
     }
 
+    /// Creates a rage with a minimum value only.
     pub fn min(min: u32) -> Self {
         Self {
             min: Some(min),
@@ -146,6 +161,7 @@ impl Range {
         }
     }
 
+    /// Creates a rage with a maximum value only.
     pub fn max(max: u32) -> Self {
         Self {
             min: None,
@@ -154,6 +170,7 @@ impl Range {
     }
 }
 
+/// Represents a combination of a clockspeed and voltage. May be used in different context based on the table format.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClocksLevel {
@@ -194,6 +211,7 @@ fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Resul
     Ok(())
 }
 
+/// A handle to commit or reset settings after clocks table has been updated.
 pub struct PowerTableHandle {
     writer: BufWriter<File>,
 }

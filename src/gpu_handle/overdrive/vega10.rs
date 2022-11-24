@@ -6,11 +6,15 @@ use crate::error::ErrorKind::ParseError;
 use serde::{Deserialize, Serialize};
 use std::{io::Write, str::FromStr};
 
+/// Vega10 clocks table.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Table {
+    /// List of core clock levels.
     pub sclk_levels: Vec<ClocksLevel>,
+    /// List of memory clock levels.
     pub mclk_levels: Vec<ClocksLevel>,
+    /// The allowed ranges for clockspeeds and voltages.
     pub allowed_ranges: AllowedRanges,
 }
 

@@ -1,3 +1,4 @@
+//! Handle on a GPU
 pub mod overdrive;
 
 use self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle};
@@ -86,21 +87,27 @@ impl GpuHandle {
         }
     }
 
+    /// Gets the pci slot name of the card.
     pub fn get_pci_slot_name(&self) -> Option<&str> {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
+    /// Gets the current PCIe link speed.
     pub fn get_current_link_speed(&self) -> Result<String> {
         self.read_file("current_link_speed")
     }
 
+    /// Gets the current PCIe link width.
     pub fn get_current_link_width(&self) -> Result<String> {
         self.read_file("current_link_width")
     }
 
+    /// Gets the maximum possible PCIe link speed.
     pub fn get_max_link_speed(&self) -> Result<String> {
         self.read_file("max_link_speed")
     }
+
+    /// Gets the maximum possible PCIe link width.
     pub fn get_max_link_width(&self) -> Result<String> {
         self.read_file("max_link_width")
     }
@@ -126,7 +133,7 @@ impl GpuHandle {
         Ok(raw_busy.parse()?)
     }
 
-    /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
+    /// Returns the GPU VBIOS version.
     pub fn get_vbios_version(&self) -> Result<String> {
         self.read_file("vbios_version")
     }
@@ -144,7 +151,7 @@ impl GpuHandle {
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
     pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<(Vec<String>, u8)> {
-        self.read_file(kind.to_filename()).and_then(|content| {
+        self.read_file(kind.as_filename()).and_then(|content| {
             let mut power_levels = Vec::new();
             let mut active = 0;
 
@@ -181,7 +188,7 @@ impl GpuHandle {
                     s.push(' ');
                 }
 
-                Ok(self.write_file(kind.to_filename(), s)?)
+                Ok(self.write_file(kind.as_filename(), s)?)
             }
             _ => Err(ErrorKind::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
@@ -191,15 +198,15 @@ impl GpuHandle {
         }
     }
 
-    /// Reads the power table from `pp_od_clk_voltage`.
-    pub fn get_power_table(&self) -> Result<ClocksTableGen> {
+    /// Reads the clocks table from `pp_od_clk_voltage`.
+    pub fn get_clocks_table(&self) -> Result<ClocksTableGen> {
         self.read_file_parsed("pp_od_clk_voltage")
     }
 
-    /// Writes the given power table to `pp_od_clk_voltage` and returns a handle.
+    /// Writes the given clocks table to `pp_od_clk_voltage` and returns a handle.
     /// The handle must then be used to either commit or reset the changes.
     #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
-    pub fn set_power_table(&self, table: &ClocksTableGen) -> Result<PowerTableHandle> {
+    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<PowerTableHandle> {
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let file = File::open(path)?;
         let mut writer = BufWriter::new(file);
@@ -216,6 +223,8 @@ impl SysFS for GpuHandle {
     }
 }
 
+/// Type of a power state.
+#[allow(missing_docs)]
 pub enum PowerStateKind {
     CoreClock,
     MemoryClock,
@@ -226,7 +235,8 @@ pub enum PowerStateKind {
 }
 
 impl PowerStateKind {
-    pub fn to_filename(&self) -> &str {
+    /// Gets the filename of a given power state.
+    pub fn as_filename(&self) -> &str {
         match self {
             PowerStateKind::CoreClock => "pp_dpm_sclk",
             PowerStateKind::MemoryClock => "pp_dpm_mclk",
@@ -238,12 +248,20 @@ impl PowerStateKind {
     }
 }
 
+/// Performance level to be used by the GPU.
+///
+/// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[non_exhaustive]
 pub enum PerformanceLevel {
+    /// When auto is selected, the driver will attempt to dynamically select the optimal power profile for current conditions in the driver.
     Auto,
+    /// When low is selected, the clocks are forced to the lowest power state.
     Low,
+    /// When high is selected, the clocks are forced to the highest power state.
     High,
+    /// When manual is selected, power states can be manually adjusted via `pp_dpm_*` files ([`GpuHandle::set_enabled_power_levels`]) and `pp_od_clk_voltage` ([`GpuHandle::set_clocks_table`]).
     Manual,
 }
 
