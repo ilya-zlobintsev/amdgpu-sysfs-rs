@@ -13,7 +13,7 @@ use std::{
     str::{FromStr, SplitWhitespace},
 };
 
-pub trait PowerTable: FromStr {
+pub trait ClocksTable: FromStr {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
 
     fn get_max_sclk(&self) -> Option<u32>;
@@ -28,12 +28,12 @@ pub trait PowerTable: FromStr {
     feature = "serde",
     serde(tag = "kind", content = "data", rename_all = "snake_case")
 )]
-pub enum PowerTableGen {
+pub enum ClocksTableGen {
     Vega10(vega10::Table),
     Vega20(vega20::Table),
 }
 
-impl FromStr for PowerTableGen {
+impl FromStr for ClocksTableGen {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
@@ -45,25 +45,25 @@ impl FromStr for PowerTableGen {
     }
 }
 
-impl PowerTable for PowerTableGen {
+impl ClocksTable for ClocksTableGen {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            PowerTableGen::Vega10(table) => table.write_commands(writer),
-            PowerTableGen::Vega20(table) => table.write_commands(writer),
+            ClocksTableGen::Vega10(table) => table.write_commands(writer),
+            ClocksTableGen::Vega20(table) => table.write_commands(writer),
         }
     }
 
     fn get_max_sclk(&self) -> Option<u32> {
         match self {
-            PowerTableGen::Vega10(table) => table.get_max_sclk(),
-            PowerTableGen::Vega20(table) => table.get_max_sclk(),
+            ClocksTableGen::Vega10(table) => table.get_max_sclk(),
+            ClocksTableGen::Vega20(table) => table.get_max_sclk(),
         }
     }
 
     fn get_max_mclk(&self) -> Option<u32> {
         match self {
-            PowerTableGen::Vega10(table) => table.get_max_mclk(),
-            PowerTableGen::Vega20(table) => table.get_max_mclk(),
+            ClocksTableGen::Vega10(table) => table.get_max_mclk(),
+            ClocksTableGen::Vega20(table) => table.get_max_mclk(),
         }
     }
 }

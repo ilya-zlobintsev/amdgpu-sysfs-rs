@@ -1,5 +1,5 @@
 //! The format used by Vega10 and older GPUs.
-use super::{parse_range_line, push_level_line, AllowedRanges, ClocksLevel, PowerTable};
+use super::{parse_range_line, push_level_line, AllowedRanges, ClocksLevel, ClocksTable};
 use crate::error::Error;
 use crate::error::ErrorKind::ParseError;
 #[cfg(feature = "serde")]
@@ -14,7 +14,7 @@ pub struct Table {
     pub allowed_ranges: AllowedRanges,
 }
 
-impl PowerTable for Table {
+impl ClocksTable for Table {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         for (i, level) in self.sclk_levels.iter().enumerate() {
             let command = level_command(*level, i, 's');
@@ -128,7 +128,7 @@ enum Section {
 #[cfg(test)]
 mod tests {
     use super::{ClocksLevel, Table};
-    use crate::gpu_handle::overdrive::{AllowedRanges, PowerTable, Range};
+    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 

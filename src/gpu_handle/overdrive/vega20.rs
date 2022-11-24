@@ -1,5 +1,5 @@
 use super::{
-    parse_line_item, parse_range_line, push_level_line, AllowedRanges, ClocksLevel, PowerTable,
+    parse_line_item, parse_range_line, push_level_line, AllowedRanges, ClocksLevel, ClocksTable,
     Range,
 };
 use crate::{
@@ -19,7 +19,7 @@ pub struct Table {
     pub allowed_ranges: AllowedRanges,
 }
 
-impl PowerTable for Table {
+impl ClocksTable for Table {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
         let clockspeeds = [
             (self.current_sclk_range.min, 's', 0),
@@ -178,7 +178,7 @@ fn write_clockspeed_line<W: Write>(
 #[cfg(test)]
 mod tests {
     use super::Table;
-    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksLevel, PowerTable, Range};
+    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksLevel, ClocksTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
