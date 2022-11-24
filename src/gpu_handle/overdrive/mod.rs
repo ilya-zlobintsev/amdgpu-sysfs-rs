@@ -80,7 +80,7 @@ fn parse_range_line(line: &str, i: usize) -> Result<(Range, &str)> {
     Ok((Range::full(min, max), name))
 }
 
-/// Takes the next item from a split, strips the given suffxies, an parses it to a type
+/// Takes the next item from a split, strips the given suffixes, an parses it to a type
 fn parse_line_item<T>(
     split: &mut SplitWhitespace,
     i: usize,
@@ -98,10 +98,8 @@ where
     let mut trimmed_text = text.as_str();
 
     for suffix in suffixes {
-        if cfg!(test) {
-            if suffix.chars().any(|ch| ch.is_uppercase()) {
-                panic!("Suffixes must be all lowercase");
-            }
+        if cfg!(test) && suffix.chars().any(|ch| ch.is_uppercase()) {
+            panic!("Suffixes must be all lowercase");
         }
         trimmed_text = trimmed_text.trim_end_matches(suffix);
     }

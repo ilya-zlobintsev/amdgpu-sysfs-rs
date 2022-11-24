@@ -1,11 +1,10 @@
 mod sysfs;
 
-use std::collections::HashMap;
-
 use amdgpu_sysfs::{
     gpu_handle::{GpuHandle, PerformanceLevel},
     hw_mon::{HwMon, Temperature},
 };
+use std::collections::HashMap;
 
 test_with_handle! {
     "rx580",
