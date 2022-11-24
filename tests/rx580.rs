@@ -8,7 +8,7 @@ use amdgpu_sysfs::{
 };
 
 test_with_handle! {
-    "polaris",
+    "rx580",
     pci_ids => {
         GpuHandle::get_pci_id, Some(("1002", "67DF")),
         GpuHandle::get_pci_subsys_id, Some(("1DA2", "E387")),
@@ -38,7 +38,7 @@ test_with_handle! {
 }
 
 test_with_hw_mon! {
-    "polaris",
+    "rx580",
     fan_info => {
         HwMon::get_fan_pwm, Ok(35),
         HwMon::get_fan_current, Ok(595),

@@ -1,13 +1,10 @@
 //! The format used by Vega10 and older GPUs.
-use super::{AllowedRanges, PowerTable, Range};
+use super::{parse_range_line, push_level_line, AllowedRanges, ClocksLevel, PowerTable};
 use crate::error::Error;
 use crate::error::ErrorKind::ParseError;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{
-    io::Write,
-    str::{FromStr, SplitWhitespace},
-};
+use std::{io::Write, str::FromStr};
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -105,83 +102,6 @@ impl FromStr for Table {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct ClocksLevel {
-    /// Clockspeed (in MHz)
-    pub clockspeed: u32,
-    /// Voltage (in mV)
-    pub voltage: u32,
-}
-
-fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Result<(), Error> {
-    let (level, num) = parse_level_line(line, i)?;
-
-    let len = levels.len();
-    if num != len {
-        return Err(ParseError {
-            msg: format!("Unexpected level num: expected {len}, got {num}"),
-            line: i,
-        }
-        .into());
-    }
-
-    levels.push(level);
-    Ok(())
-}
-
-fn parse_level_line(line: &str, i: usize) -> Result<(ClocksLevel, usize), Error> {
-    let mut split = line.split_whitespace();
-    let num = parse_line_item(&mut split, i, "level number", &[":"])?;
-    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["MHz"])?;
-    let voltage = parse_line_item(&mut split, i, "voltage", &["mV"])?;
-
-    Ok((
-        ClocksLevel {
-            clockspeed,
-            voltage,
-        },
-        num,
-    ))
-}
-
-fn parse_range_line(line: &str, i: usize) -> Result<(Range, &str), Error> {
-    let mut split = line.split_whitespace();
-    let name = split
-        .next()
-        .ok_or_else(|| Error::unexpected_eol("range name", i))?
-        .trim_end_matches(':');
-    let min = parse_line_item(&mut split, i, "range minimum", &["MHz", "mV"])?;
-    let max = parse_line_item(&mut split, i, "range maximum", &["MHz", "mV"])?;
-
-    Ok((Range { min, max }, name))
-}
-
-fn parse_line_item<T>(
-    split: &mut SplitWhitespace,
-    i: usize,
-    item: &str,
-    suffixes: &[&str],
-) -> Result<T, Error>
-where
-    T: FromStr,
-    <T as FromStr>::Err: std::fmt::Display,
-{
-    let mut text = split.next().ok_or_else(|| Error::unexpected_eol(item, i))?;
-
-    for suffix in suffixes {
-        text = text.trim_end_matches(suffix);
-    }
-
-    text.parse().map_err(|err| {
-        ParseError {
-            msg: format!("Could not parse {item}: {err}"),
-            line: i,
-        }
-        .into()
-    })
-}
-
 fn level_command(level: ClocksLevel, i: usize, symbol: char) -> String {
     let ClocksLevel {
         clockspeed,
@@ -199,7 +119,7 @@ enum Section {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_level_line, parse_range_line, ClocksLevel, Table};
+    use super::{ClocksLevel, Table};
     use crate::gpu_handle::overdrive::{AllowedRanges, PowerTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
@@ -225,24 +145,6 @@ mod tests {
         "#;
 
     #[test]
-    fn parse_level_line_basic() {
-        let line = "0:        300MHz        750mV";
-        let (level, i) = parse_level_line(line, 50).unwrap();
-        assert_eq!(i, 0);
-        assert_eq!(level.clockspeed, 300);
-        assert_eq!(level.voltage, 750);
-    }
-
-    #[test]
-    fn parse_range_line_sclk() {
-        let line = "SCLK:     300MHz       2000MHz";
-        let (level, name) = parse_range_line(line, 50).unwrap();
-        assert_eq!(name, "SCLK");
-        assert_eq!(level.min, 300);
-        assert_eq!(level.max, 2000);
-    }
-
-    #[test]
     fn parse_full_table() {
         let table = Table::from_str(TABLE).unwrap();
 
@@ -266,18 +168,9 @@ mod tests {
                 voltage,
             });
         let ranges = AllowedRanges {
-            sclk: Range {
-                min: 300,
-                max: 2000,
-            },
-            mclk: Some(Range {
-                min: 300,
-                max: 2250,
-            }),
-            vddc: Some(Range {
-                min: 750,
-                max: 1200,
-            }),
+            sclk: Range::full(300, 2000),
+            mclk: Some(Range::full(300, 2250)),
+            vddc: Some(Range::full(750, 1200)),
         };
 
         assert_eq!(table.sclk_levels, sclk_levels);

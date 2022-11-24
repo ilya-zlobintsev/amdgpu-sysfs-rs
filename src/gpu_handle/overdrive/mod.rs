@@ -1,12 +1,16 @@
-pub mod gen1;
+pub mod vega10;
+pub mod vega20;
 
-use crate::{error::Error, Result};
+use crate::{
+    error::{Error, ErrorKind},
+    Result,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{
     fs::File,
     io::{BufWriter, Write},
-    str::FromStr,
+    str::{FromStr, SplitWhitespace},
 };
 
 pub trait PowerTable: FromStr {
@@ -21,24 +25,67 @@ pub trait PowerTable: FromStr {
     serde(tag = "kind", content = "data", rename_all = "snake_case")
 )]
 pub enum PowerTableGen {
-    Gen1(gen1::Table),
+    Vega10(vega10::Table),
+    Vega20(vega20::Table),
 }
 
 impl FromStr for PowerTableGen {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        // TODO: type detection
-        gen1::Table::from_str(s).map(Self::Gen1)
+        if s.contains("VDDC_CURVE") || s.contains("OD_VDDGFX_OFFSET") {
+            vega20::Table::from_str(s).map(Self::Vega20)
+        } else {
+            vega10::Table::from_str(s).map(Self::Vega10)
+        }
     }
 }
 
 impl PowerTable for PowerTableGen {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
         match self {
-            PowerTableGen::Gen1(table) => table.write_commands(writer),
+            PowerTableGen::Vega10(table) => table.write_commands(writer),
+            PowerTableGen::Vega20(table) => table.write_commands(writer),
         }
     }
+}
+
+fn parse_range_line(line: &str, i: usize) -> Result<(Range, &str)> {
+    let mut split = line.split_whitespace();
+    let name = split
+        .next()
+        .ok_or_else(|| Error::unexpected_eol("range name", i))?
+        .trim_end_matches(':');
+    let min = parse_line_item(&mut split, i, "range minimum", &["MHz", "mV"])?;
+    let max = parse_line_item(&mut split, i, "range maximum", &["MHz", "mV"])?;
+
+    Ok((Range::full(min, max), name))
+}
+
+/// Takes the next item from a split, strips the given suffxies, an parses it to a type
+fn parse_line_item<T>(
+    split: &mut SplitWhitespace,
+    i: usize,
+    item: &str,
+    suffixes: &[&str],
+) -> Result<T>
+where
+    T: FromStr,
+    <T as FromStr>::Err: std::fmt::Display,
+{
+    let mut text = split.next().ok_or_else(|| Error::unexpected_eol(item, i))?;
+
+    for suffix in suffixes {
+        text = text.trim_end_matches(suffix);
+    }
+
+    text.parse().map_err(|err| {
+        ErrorKind::ParseError {
+            msg: format!("Could not parse {item}: {err}"),
+            line: i,
+        }
+        .into()
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,8 +102,57 @@ pub struct AllowedRanges {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Range {
-    pub min: u32,
-    pub max: u32,
+    pub min: Option<u32>,
+    pub max: Option<u32>,
+}
+
+impl Range {
+    pub fn full(min: u32, max: u32) -> Self {
+        Self {
+            min: Some(min),
+            max: Some(max),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct ClocksLevel {
+    /// Clockspeed (in MHz)
+    pub clockspeed: u32,
+    /// Voltage (in mV)
+    pub voltage: u32,
+}
+
+fn parse_level_line(line: &str, i: usize) -> Result<(ClocksLevel, usize)> {
+    let mut split = line.split_whitespace();
+    let num = parse_line_item(&mut split, i, "level number", &[":"])?;
+    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["MHz"])?;
+    let voltage = parse_line_item(&mut split, i, "voltage", &["mV"])?;
+
+    Ok((
+        ClocksLevel {
+            clockspeed,
+            voltage,
+        },
+        num,
+    ))
+}
+
+fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Result<()> {
+    let (level, num) = parse_level_line(line, i)?;
+
+    let len = levels.len();
+    if num != len {
+        return Err(ErrorKind::ParseError {
+            msg: format!("Unexpected level num: expected {len}, got {num}"),
+            line: i,
+        }
+        .into());
+    }
+
+    levels.push(level);
+    Ok(())
 }
 
 pub struct PowerTableHandle {
@@ -82,5 +178,28 @@ impl PowerTableHandle {
         self.writer.write_all(b"r\n")?;
         self.writer.flush()?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{parse_level_line, parse_range_line};
+
+    #[test]
+    fn parse_range_line_sclk() {
+        let line = "SCLK:     300MHz       2000MHz";
+        let (level, name) = parse_range_line(line, 50).unwrap();
+        assert_eq!(name, "SCLK");
+        assert_eq!(level.min, Some(300));
+        assert_eq!(level.max, Some(2000));
+    }
+
+    #[test]
+    fn parse_level_line_basic() {
+        let line = "0:        300MHz        750mV";
+        let (level, i) = parse_level_line(line, 50).unwrap();
+        assert_eq!(i, 0);
+        assert_eq!(level.clockspeed, 300);
+        assert_eq!(level.voltage, 750);
     }
 }
