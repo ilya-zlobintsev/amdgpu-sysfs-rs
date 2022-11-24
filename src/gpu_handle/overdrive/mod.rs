@@ -15,6 +15,10 @@ use std::{
 
 pub trait PowerTable: FromStr {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
+
+    fn get_max_sclk(&self) -> Option<u32>;
+
+    fn get_max_mclk(&self) -> Option<u32>;
 }
 
 /// Representation of `pp_od_clk_voltage`
@@ -48,6 +52,20 @@ impl PowerTable for PowerTableGen {
             PowerTableGen::Vega20(table) => table.write_commands(writer),
         }
     }
+
+    fn get_max_sclk(&self) -> Option<u32> {
+        match self {
+            PowerTableGen::Vega10(table) => table.get_max_sclk(),
+            PowerTableGen::Vega20(table) => table.get_max_sclk(),
+        }
+    }
+
+    fn get_max_mclk(&self) -> Option<u32> {
+        match self {
+            PowerTableGen::Vega10(table) => table.get_max_mclk(),
+            PowerTableGen::Vega20(table) => table.get_max_mclk(),
+        }
+    }
 }
 
 fn parse_range_line(line: &str, i: usize) -> Result<(Range, &str)> {
@@ -56,8 +74,8 @@ fn parse_range_line(line: &str, i: usize) -> Result<(Range, &str)> {
         .next()
         .ok_or_else(|| Error::unexpected_eol("range name", i))?
         .trim_end_matches(':');
-    let min = parse_line_item(&mut split, i, "range minimum", &["MHz", "mV"])?;
-    let max = parse_line_item(&mut split, i, "range maximum", &["MHz", "mV"])?;
+    let min = parse_line_item(&mut split, i, "range minimum", &["mhz", "mv"])?;
+    let max = parse_line_item(&mut split, i, "range maximum", &["mhz", "mv"])?;
 
     Ok((Range::full(min, max), name))
 }
@@ -73,15 +91,24 @@ where
     T: FromStr,
     <T as FromStr>::Err: std::fmt::Display,
 {
-    let mut text = split.next().ok_or_else(|| Error::unexpected_eol(item, i))?;
+    let text = split
+        .next()
+        .ok_or_else(|| Error::unexpected_eol(item, i))?
+        .to_lowercase();
+    let mut trimmed_text = text.as_str();
 
     for suffix in suffixes {
-        text = text.trim_end_matches(suffix);
+        if cfg!(test) {
+            if suffix.chars().any(|ch| ch.is_uppercase()) {
+                panic!("Suffixes must be all lowercase");
+            }
+        }
+        trimmed_text = trimmed_text.trim_end_matches(suffix);
     }
 
-    text.parse().map_err(|err| {
+    trimmed_text.parse().map_err(|err| {
         ErrorKind::ParseError {
-            msg: format!("Could not parse {item}: {err}"),
+            msg: format!("Could not parse {item} with value {trimmed_text}: {err}"),
             line: i,
         }
         .into()
@@ -113,6 +140,20 @@ impl Range {
             max: Some(max),
         }
     }
+
+    pub fn min(min: u32) -> Self {
+        Self {
+            min: Some(min),
+            max: None,
+        }
+    }
+
+    pub fn max(max: u32) -> Self {
+        Self {
+            min: None,
+            max: Some(max),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -127,8 +168,8 @@ pub struct ClocksLevel {
 fn parse_level_line(line: &str, i: usize) -> Result<(ClocksLevel, usize)> {
     let mut split = line.split_whitespace();
     let num = parse_line_item(&mut split, i, "level number", &[":"])?;
-    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["MHz"])?;
-    let voltage = parse_line_item(&mut split, i, "voltage", &["mV"])?;
+    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["mhz"])?;
+    let voltage = parse_line_item(&mut split, i, "voltage", &["mv"])?;
 
     Ok((
         ClocksLevel {

@@ -1,6 +1,6 @@
 use super::{
-    parse_level_line, parse_line_item, parse_range_line, push_level_line, AllowedRanges,
-    ClocksLevel, PowerTable, Range,
+    parse_line_item, parse_range_line, push_level_line, AllowedRanges, ClocksLevel, PowerTable,
+    Range,
 };
 use crate::{
     error::{Error, ErrorKind::ParseError},
@@ -16,12 +16,20 @@ pub struct Table {
     pub current_sclk_range: Range,
     pub current_mclk_range: Range,
     pub vddc_curve: Vec<ClocksLevel>,
-    pub allowed_levels: AllowedRanges,
+    pub allowed_ranges: AllowedRanges,
 }
 
 impl PowerTable for Table {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
         todo!()
+    }
+
+    fn get_max_sclk(&self) -> Option<u32> {
+        self.current_sclk_range.max
+    }
+
+    fn get_max_mclk(&self) -> Option<u32> {
+        self.current_mclk_range.max
     }
 }
 
@@ -43,8 +51,9 @@ impl FromStr for Table {
                 "OD_SCLK:" => current_section = Some(Section::Sclk),
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
                 "OD_RANGE:" => current_section = Some(Section::Range),
+                "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
                 vddc_curve_line if line.starts_with("VDDC_CURVE_") => {
-                    todo!()
+                    continue; // TODO
                 }
                 line => match current_section {
                     Some(Section::Range) => {
@@ -87,15 +96,21 @@ impl FromStr for Table {
             })?),
             vddc: None,
         };
-
-        /*let sclk_range =
+        let current_sclk_range = current_sclk_range.ok_or_else(|| ParseError {
+            msg: "No current sclk range found".to_owned(),
+            line: i,
+        })?;
+        let current_mclk_range = current_mclk_range.ok_or_else(|| ParseError {
+            msg: "No current mclk range found".to_owned(),
+            line: i,
+        })?;
 
         Ok(Self {
-            sclk_range,
-            mclk_range,
-            allowed_levels: todo!(),
-        })*/
-        todo!()
+            allowed_ranges,
+            current_sclk_range,
+            current_mclk_range,
+            vddc_curve,
+        })
     }
 }
 
@@ -109,7 +124,7 @@ enum Section {
 fn parse_clockspeed_line(line: &str, i: usize) -> Result<(u32, usize)> {
     let mut split = line.split_whitespace();
     let num = parse_line_item(&mut split, i, "level number", &[":"])?;
-    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["MHz"])?;
+    let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["mhz"])?;
 
     Ok((clockspeed, num))
 }
@@ -118,27 +133,63 @@ fn parse_min_max_line(line: &str, i: usize, range: &mut Option<Range>) -> Result
     let (clockspeed, num) = parse_clockspeed_line(line, i)?;
     match num {
         0 => {
-            *range = Some(Range {
-                min: Some(clockspeed),
-                max: None,
-            });
+            *range = Some(Range::min(clockspeed));
             Ok(())
         }
-        1 => match range {
-            Some(range) => {
+        1 => {
+            if let Some(range) = range {
                 range.max = Some(clockspeed);
-                Ok(())
+            } else {
+                *range = Some(Range::max(clockspeed));
             }
-            None => Err(ParseError {
-                msg: "Found range max item with no proceeding min item".to_owned(),
-                line: i,
-            }
-            .into()),
-        },
+            Ok(())
+        }
         _ => Err(ParseError {
             msg: format!("Unexpected range number {num}"),
             line: i,
         }
         .into()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Table;
+    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksLevel, PowerTable, Range};
+    use pretty_assertions::assert_eq;
+    use std::str::FromStr;
+
+    const TABLE_5700XT: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/rx5700xt/pp_od_clk_voltage"
+    ));
+
+    #[test]
+    fn parse_5700xt_full() {
+        let table = Table::from_str(TABLE_5700XT).unwrap();
+
+        assert_eq!(table.current_sclk_range, Range::full(800, 2100));
+        assert_eq!(table.current_mclk_range, Range::max(875));
+
+        let vddc_curve =
+            [(800, 711), (1450, 801), (2100, 1191)].map(|(clockspeed, voltage)| ClocksLevel {
+                clockspeed,
+                voltage,
+            });
+        assert_eq!(table.vddc_curve, vddc_curve);
+
+        let allowed_ranges = AllowedRanges {
+            sclk: Range::full(800, 2150),
+            mclk: Some(Range::full(625, 950)),
+            vddc: None,
+        };
+        assert_eq!(table.allowed_ranges, allowed_ranges);
+    }
+
+    #[test]
+    fn max_clocks_5700xt() {
+        let table = Table::from_str(TABLE_5700XT).unwrap();
+        assert_eq!(table.get_max_sclk(), Some(2100));
+        assert_eq!(table.get_max_mclk(), Some(875));
     }
 }

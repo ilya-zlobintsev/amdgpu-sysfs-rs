@@ -28,6 +28,14 @@ impl PowerTable for Table {
 
         Ok(())
     }
+
+    fn get_max_sclk(&self) -> Option<u32> {
+        self.sclk_levels.last().map(|level| level.clockspeed)
+    }
+
+    fn get_max_mclk(&self) -> Option<u32> {
+        self.mclk_levels.last().map(|level| level.clockspeed)
+    }
 }
 
 impl FromStr for Table {
@@ -124,29 +132,14 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
-    const TABLE: &str = r#"
-            OD_SCLK:
-            0:        300MHz        750mV
-            1:        600MHz        769mV
-            2:        900MHz        912mV
-            3:       1145MHz       1125mV
-            4:       1215MHz       1150mV
-            5:       1257MHz       1150mV
-            6:       1300MHz       1150mV
-            7:       1366MHz       1150mV
-            OD_MCLK:
-            0:        300MHz        750mV
-            1:       1000MHz        825mV
-            2:       1750MHz        975mV
-            OD_RANGE:
-            SCLK:     300MHz       2000MHz
-            MCLK:     300MHz       2250MHz
-            VDDC:     750mV        1200mV
-        "#;
+    const TABLE_RX580: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/rx580/pp_od_clk_voltage"
+    ));
 
     #[test]
     fn parse_full_table() {
-        let table = Table::from_str(TABLE).unwrap();
+        let table = Table::from_str(TABLE_RX580).unwrap();
 
         let sclk_levels = [
             (300, 750),
@@ -180,7 +173,7 @@ mod tests {
 
     #[test]
     fn table_into_commands() {
-        let table = Table::from_str(TABLE).unwrap();
+        let table = Table::from_str(TABLE_RX580).unwrap();
         let mut buf = Vec::new();
         table.write_commands(&mut buf).unwrap();
         let commands = String::from_utf8(buf).unwrap();
@@ -202,5 +195,14 @@ mod tests {
         expected_commands.push('\n');
 
         assert_eq!(commands, expected_commands);
+    }
+
+    #[test]
+    fn max_clocks() {
+        let table = Table::from_str(TABLE_RX580).unwrap();
+        let sclk = table.get_max_sclk().unwrap();
+        assert_eq!(sclk, 1366);
+        let mclk = table.get_max_mclk().unwrap();
+        assert_eq!(mclk, 1750);
     }
 }
