@@ -21,7 +21,20 @@ pub struct Table {
 
 impl PowerTable for Table {
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
-        todo!()
+        let clockspeeds = [
+            (self.current_sclk_range.min, 's', 0),
+            (self.current_sclk_range.max, 's', 1),
+            (self.current_mclk_range.min, 'm', 0),
+            (self.current_mclk_range.max, 'm', 1),
+        ];
+
+        for (maybe_clockspeed, symbol, index) in clockspeeds {
+            if let Some(clockspeed) = maybe_clockspeed {
+                write_clockspeed_line(writer, symbol, index, clockspeed)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn get_max_sclk(&self) -> Option<u32> {
@@ -52,7 +65,7 @@ impl FromStr for Table {
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
                 "OD_RANGE:" => current_section = Some(Section::Range),
                 "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
-                vddc_curve_line if line.starts_with("VDDC_CURVE_") => {
+                _ if line.starts_with("VDDC_CURVE_") => {
                     continue; // TODO
                 }
                 line => match current_section {
@@ -152,6 +165,16 @@ fn parse_min_max_line(line: &str, i: usize, range: &mut Option<Range>) -> Result
     }
 }
 
+fn write_clockspeed_line<W: Write>(
+    writer: &mut W,
+    symbol: char,
+    index: u8,
+    clockspeed: u32,
+) -> Result<()> {
+    writeln!(writer, "{symbol} {index} {clockspeed}")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::Table;
@@ -191,5 +214,18 @@ mod tests {
         let table = Table::from_str(TABLE_5700XT).unwrap();
         assert_eq!(table.get_max_sclk(), Some(2100));
         assert_eq!(table.get_max_mclk(), Some(875));
+    }
+
+    #[test]
+    fn write_commands_5700xt() {
+        let table = Table::from_str(TABLE_5700XT).unwrap();
+        let mut buf = Vec::new();
+        table.write_commands(&mut buf).unwrap();
+        let commands = String::from_utf8(buf).unwrap();
+
+        let mut expected_commands = ["s 0 800", "s 1 2100", "m 1 875"].join("\n");
+        expected_commands.push('\n');
+
+        assert_eq!(commands, expected_commands);
     }
 }
