@@ -1,7 +1,7 @@
 //! Handle on a GPU
+#[cfg(feature = "overdrive")]
 pub mod overdrive;
 
-use self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle};
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
     hw_mon::HwMon,
@@ -10,13 +10,11 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt,
-    fs::{self, File},
-    io::BufWriter,
-    path::PathBuf,
-    str::FromStr,
+use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
+#[cfg(feature = "overdrive")]
+use {
+    self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle},
+    std::{fs::File, io::BufWriter},
 };
 
 /// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
@@ -36,7 +34,7 @@ impl GpuHandle {
     pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self> {
         let mut hw_monitors = Vec::new();
 
-        if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
+        if let Ok(hw_mons_iter) = fs::read_dir(sysfs_path.join("hwmon")) {
             for hw_mon_dir in hw_mons_iter.flatten() {
                 if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()) {
                     hw_monitors.push(hw_mon);
@@ -201,6 +199,7 @@ impl GpuHandle {
     }
 
     /// Reads the clocks table from `pp_od_clk_voltage`.
+    #[cfg(feature = "overdrive")]
     pub fn get_clocks_table(&self) -> Result<ClocksTableGen> {
         self.read_file_parsed("pp_od_clk_voltage")
     }
@@ -208,6 +207,7 @@ impl GpuHandle {
     /// Writes the given clocks table to `pp_od_clk_voltage` and returns a handle.
     /// The handle must then be used to either commit or reset the changes.
     #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
+    #[cfg(feature = "overdrive")]
     pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<PowerTableHandle> {
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let file = File::open(path)?;

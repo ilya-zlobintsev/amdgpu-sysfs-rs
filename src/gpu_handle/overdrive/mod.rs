@@ -8,6 +8,7 @@ use crate::{
     error::{Error, ErrorKind},
     Result,
 };
+use enum_dispatch::enum_dispatch;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -17,6 +18,7 @@ use std::{
 };
 
 /// Shared functionality across all table formats.
+#[enum_dispatch]
 pub trait ClocksTable: FromStr {
     /// Writes commands needed to apply the state that is in the table struct on the GPU.
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
@@ -35,6 +37,7 @@ pub trait ClocksTable: FromStr {
     feature = "serde",
     serde(tag = "kind", content = "data", rename_all = "snake_case")
 )]
+#[enum_dispatch(ClocksTable)]
 pub enum ClocksTableGen {
     /// Vega10 (and older) format
     Vega10(vega10::Table),
@@ -50,29 +53,6 @@ impl FromStr for ClocksTableGen {
             vega20::Table::from_str(s).map(Self::Vega20)
         } else {
             vega10::Table::from_str(s).map(Self::Vega10)
-        }
-    }
-}
-
-impl ClocksTable for ClocksTableGen {
-    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
-        match self {
-            ClocksTableGen::Vega10(table) => table.write_commands(writer),
-            ClocksTableGen::Vega20(table) => table.write_commands(writer),
-        }
-    }
-
-    fn get_max_sclk(&self) -> Option<u32> {
-        match self {
-            ClocksTableGen::Vega10(table) => table.get_max_sclk(),
-            ClocksTableGen::Vega20(table) => table.get_max_sclk(),
-        }
-    }
-
-    fn get_max_mclk(&self) -> Option<u32> {
-        match self {
-            ClocksTableGen::Vega10(table) => table.get_max_mclk(),
-            ClocksTableGen::Vega20(table) => table.get_max_mclk(),
         }
     }
 }
