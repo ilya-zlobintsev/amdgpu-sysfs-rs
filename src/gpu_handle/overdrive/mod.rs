@@ -30,16 +30,46 @@ pub trait ClocksTable: FromStr {
     fn get_max_sclk(&self) -> Option<u32>;
 
     /// Sets the maximum core clock.
-    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+        let allowed_ranges = self.get_allowed_ranges();
+        check_clockspeed_in_range(Some(allowed_ranges.sclk), clockspeed)?;
+        self.set_max_sclk_unchecked(clockspeed)
+    }
+
+    /// Sets the maximum core clock (without checking if it's in the allowed range).
+    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
 
     /// Gets the current maximum memory clock.
     fn get_max_mclk(&self) -> Option<u32>;
 
     /// Sets the maximum memory clock.
-    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+        let allowed_ranges = self.get_allowed_ranges();
+        check_clockspeed_in_range(allowed_ranges.mclk, clockspeed)?;
+        self.set_max_mclk_unchecked(clockspeed)
+    }
+
+    /// Sets the maximum memory clock (without checking if it's in the allowed range).
+    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
 
     /// Gets the current maximum voltage (used on maximum clockspeed).
     fn get_max_sclk_voltage(&self) -> Option<u32>;
+}
+
+fn check_clockspeed_in_range(range: Option<Range>, clockspeed: u32) -> Result<()> {
+    if let (Some(min), Some(max)) = range.map_or((None, None), |range| (range.min, range.max)) {
+        if (min..=max).contains(&clockspeed) {
+            Ok(())
+        } else {
+            Err(Error::not_allowed(format!(
+                "Given clockspeed {clockspeed} is out of the allowed OD range {min} to {max}"
+            )))
+        }
+    } else {
+        Err(Error::not_allowed(
+            "GPU does not report allowed OD ranges".to_owned(),
+        ))
+    }
 }
 
 /// Representation of `pp_od_clk_voltage`
@@ -261,7 +291,7 @@ fn arr_commands<const N: usize>(commands: [&str; N]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_level_line, parse_range_line};
+    use super::{check_clockspeed_in_range, parse_level_line, parse_range_line, Range};
 
     #[test]
     fn parse_range_line_sclk() {
@@ -279,5 +309,15 @@ mod tests {
         assert_eq!(i, 0);
         assert_eq!(level.clockspeed, 300);
         assert_eq!(level.voltage, 750);
+    }
+
+    #[test]
+    fn allowed_ranges() {
+        let range = Some(Range::full(300, 1000));
+        check_clockspeed_in_range(range, 300).unwrap();
+        check_clockspeed_in_range(range, 750).unwrap();
+        check_clockspeed_in_range(range, 1000).unwrap();
+        check_clockspeed_in_range(range, 1001).unwrap_err();
+        check_clockspeed_in_range(range, 250).unwrap_err();
     }
 }

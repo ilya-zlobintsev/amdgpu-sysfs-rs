@@ -43,7 +43,7 @@ impl ClocksTable for Table {
         self.sclk_levels.last().map(|level| level.clockspeed)
     }
 
-    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.sclk_levels
             .last_mut()
             .ok_or_else(|| {
@@ -58,7 +58,7 @@ impl ClocksTable for Table {
         self.mclk_levels.last().map(|level| level.clockspeed)
     }
 
-    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.mclk_levels
             .last_mut()
             .ok_or_else(|| {
@@ -246,8 +246,8 @@ mod tests {
         assert_eq!(table.sclk_levels[7].clockspeed, 1400);
 
         table.set_max_mclk(1800).unwrap();
-        let sclk = table.get_max_mclk().unwrap();
-        assert_eq!(sclk, 1800);
+        let mclk = table.get_max_mclk().unwrap();
+        assert_eq!(mclk, 1800);
         assert_eq!(table.mclk_levels[2].clockspeed, 1800);
     }
 }

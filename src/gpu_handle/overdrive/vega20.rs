@@ -55,7 +55,7 @@ impl ClocksTable for Table {
         self.current_sclk_range.max
     }
 
-    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.current_sclk_range.max = Some(clockspeed);
         Ok(())
     }
@@ -64,7 +64,7 @@ impl ClocksTable for Table {
         self.current_mclk_range.max
     }
 
-    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.current_mclk_range.max = Some(clockspeed);
         Ok(())
     }
@@ -253,13 +253,13 @@ mod tests {
         assert_eq!(table.get_max_mclk(), Some(875));
         assert_eq!(table.get_max_sclk_voltage(), Some(1191));
 
-        table.set_max_sclk(2200).unwrap();
-        assert_eq!(table.get_max_sclk(), Some(2200));
-        assert_eq!(table.current_sclk_range.max, Some(2200));
+        table.set_max_sclk(2050).unwrap();
+        assert_eq!(table.get_max_sclk(), Some(2050));
+        assert_eq!(table.current_sclk_range.max, Some(2050));
 
-        table.set_max_mclk(1800).unwrap();
-        assert_eq!(table.get_max_mclk(), Some(1800));
-        assert_eq!(table.current_mclk_range.max, Some(1800));
+        table.set_max_mclk(950).unwrap();
+        assert_eq!(table.get_max_mclk(), Some(950));
+        assert_eq!(table.current_mclk_range.max, Some(950));
     }
 
     #[test]
