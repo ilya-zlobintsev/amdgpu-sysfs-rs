@@ -54,6 +54,10 @@ impl ClocksTable for Table {
     fn get_max_mclk(&self) -> Option<u32> {
         self.current_mclk_range.max
     }
+
+    fn get_max_sclk_voltage(&self) -> Option<u32> {
+        self.vddc_curve.last().map(|level| level.voltage)
+    }
 }
 
 impl FromStr for Table {
@@ -229,10 +233,11 @@ mod tests {
     }
 
     #[test]
-    fn max_clocks_5700xt() {
+    fn generic_actions_5700xt() {
         let table = Table::from_str(TABLE_5700XT).unwrap();
         assert_eq!(table.get_max_sclk(), Some(2100));
         assert_eq!(table.get_max_mclk(), Some(875));
+        assert_eq!(table.get_max_sclk_voltage(), Some(1191));
     }
 
     #[test]

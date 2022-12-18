@@ -28,6 +28,9 @@ pub trait ClocksTable: FromStr {
 
     /// Gets the current maximum memory clock.
     fn get_max_mclk(&self) -> Option<u32>;
+
+    /// Gets the current maximum voltage (used on maximum clockspeed).
+    fn get_max_sclk_voltage(&self) -> Option<u32>;
 }
 
 /// Representation of `pp_od_clk_voltage`

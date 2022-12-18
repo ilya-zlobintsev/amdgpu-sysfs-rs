@@ -40,6 +40,10 @@ impl ClocksTable for Table {
     fn get_max_mclk(&self) -> Option<u32> {
         self.mclk_levels.last().map(|level| level.clockspeed)
     }
+
+    fn get_max_sclk_voltage(&self) -> Option<u32> {
+        self.sclk_levels.last().map(|level| level.voltage)
+    }
 }
 
 impl FromStr for Table {
