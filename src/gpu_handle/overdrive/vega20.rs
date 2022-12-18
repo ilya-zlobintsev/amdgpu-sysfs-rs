@@ -64,6 +64,11 @@ impl ClocksTable for Table {
         self.current_mclk_range.max
     }
 
+    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+        self.current_mclk_range.max = Some(clockspeed);
+        Ok(())
+    }
+
     fn get_max_sclk_voltage(&self) -> Option<u32> {
         self.vddc_curve.last().map(|level| level.voltage)
     }
@@ -251,6 +256,10 @@ mod tests {
         table.set_max_sclk(2200).unwrap();
         assert_eq!(table.get_max_sclk(), Some(2200));
         assert_eq!(table.current_sclk_range.max, Some(2200));
+
+        table.set_max_mclk(1800).unwrap();
+        assert_eq!(table.get_max_mclk(), Some(1800));
+        assert_eq!(table.current_mclk_range.max, Some(1800));
     }
 
     #[test]

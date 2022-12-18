@@ -58,6 +58,16 @@ impl ClocksTable for Table {
         self.mclk_levels.last().map(|level| level.clockspeed)
     }
 
+    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+        self.mclk_levels
+            .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .clockspeed = clockspeed;
+        Ok(())
+    }
+
     fn get_max_sclk_voltage(&self) -> Option<u32> {
         self.sclk_levels.last().map(|level| level.voltage)
     }
@@ -234,5 +244,10 @@ mod tests {
         let sclk = table.get_max_sclk().unwrap();
         assert_eq!(sclk, 1400);
         assert_eq!(table.sclk_levels[7].clockspeed, 1400);
+
+        table.set_max_mclk(1800).unwrap();
+        let sclk = table.get_max_mclk().unwrap();
+        assert_eq!(sclk, 1800);
+        assert_eq!(table.mclk_levels[2].clockspeed, 1800);
     }
 }
