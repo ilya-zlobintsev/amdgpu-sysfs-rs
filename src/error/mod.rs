@@ -38,20 +38,19 @@ pub enum ErrorKind {
 
 impl Error {
     pub(crate) fn unexpected_eol<T: Display>(expected_item: T, line: usize) -> Self {
-        Self {
-            context: None,
-            kind: ErrorKind::ParseError {
-                msg: format!("Unexpected EOL, expected {expected_item}"),
-                line,
-            },
+        ErrorKind::ParseError {
+            msg: format!("Unexpected EOL, expected {expected_item}"),
+            line,
         }
+        .into()
     }
 
     pub(crate) fn basic_parse_error(msg: String) -> Self {
-        Self {
-            context: None,
-            kind: ErrorKind::ParseError { msg, line: 1 },
-        }
+        ErrorKind::ParseError { msg, line: 1 }.into()
+    }
+
+    pub(crate) fn not_allowed(msg: String) -> Self {
+        ErrorKind::NotAllowed(msg).into()
     }
 
     /// If the error means that the file doesn't exist
@@ -78,11 +77,7 @@ impl Display for Error {
     }
 }
 
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
+impl std::error::Error for Error {}
 
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {

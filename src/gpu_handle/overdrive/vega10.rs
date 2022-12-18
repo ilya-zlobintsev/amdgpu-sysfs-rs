@@ -1,7 +1,9 @@
 //! The format used by Vega10 and older GPUs.
 use super::{parse_range_line, push_level_line, AllowedRanges, ClocksLevel, ClocksTable};
-use crate::error::Error;
-use crate::error::ErrorKind::ParseError;
+use crate::{
+    error::{Error, ErrorKind::ParseError},
+    Result,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{io::Write, str::FromStr};
@@ -19,7 +21,7 @@ pub struct Table {
 }
 
 impl ClocksTable for Table {
-    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
+    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
         for (i, level) in self.sclk_levels.iter().enumerate() {
             let command = level_command(*level, i, 's');
             writer.write_all(command.as_bytes())?;
@@ -33,8 +35,23 @@ impl ClocksTable for Table {
         Ok(())
     }
 
+    fn get_allowed_ranges(&self) -> AllowedRanges {
+        self.allowed_ranges
+    }
+
     fn get_max_sclk(&self) -> Option<u32> {
         self.sclk_levels.last().map(|level| level.clockspeed)
+    }
+
+    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+        self.sclk_levels
+            .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .clockspeed = clockspeed;
+
+        Ok(())
     }
 
     fn get_max_mclk(&self) -> Option<u32> {
@@ -49,7 +66,7 @@ impl ClocksTable for Table {
 impl FromStr for Table {
     type Err = Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> Result<Self> {
         let mut sclk_levels = Vec::with_capacity(7);
         let mut mclk_levels = Vec::with_capacity(2);
         let mut sclk_range = None;
@@ -204,11 +221,18 @@ mod tests {
     }
 
     #[test]
-    fn max_clocks() {
-        let table = Table::from_str(TABLE_RX580).unwrap();
+    fn generic_actions() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
         let sclk = table.get_max_sclk().unwrap();
         assert_eq!(sclk, 1366);
         let mclk = table.get_max_mclk().unwrap();
         assert_eq!(mclk, 1750);
+        let voltage = table.get_max_sclk_voltage().unwrap();
+        assert_eq!(voltage, 1150);
+
+        table.set_max_sclk(1400).unwrap();
+        let sclk = table.get_max_sclk().unwrap();
+        assert_eq!(sclk, 1400);
+        assert_eq!(table.sclk_levels[7].clockspeed, 1400);
     }
 }

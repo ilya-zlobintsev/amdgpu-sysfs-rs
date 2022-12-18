@@ -47,8 +47,17 @@ impl ClocksTable for Table {
         Ok(())
     }
 
+    fn get_allowed_ranges(&self) -> AllowedRanges {
+        self.allowed_ranges
+    }
+
     fn get_max_sclk(&self) -> Option<u32> {
         self.current_sclk_range.max
+    }
+
+    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+        self.current_sclk_range.max = Some(clockspeed);
+        Ok(())
     }
 
     fn get_max_mclk(&self) -> Option<u32> {
@@ -234,10 +243,14 @@ mod tests {
 
     #[test]
     fn generic_actions_5700xt() {
-        let table = Table::from_str(TABLE_5700XT).unwrap();
+        let mut table = Table::from_str(TABLE_5700XT).unwrap();
         assert_eq!(table.get_max_sclk(), Some(2100));
         assert_eq!(table.get_max_mclk(), Some(875));
         assert_eq!(table.get_max_sclk_voltage(), Some(1191));
+
+        table.set_max_sclk(2200).unwrap();
+        assert_eq!(table.get_max_sclk(), Some(2200));
+        assert_eq!(table.current_sclk_range.max, Some(2200));
     }
 
     #[test]

@@ -23,8 +23,14 @@ pub trait ClocksTable: FromStr {
     /// Writes commands needed to apply the state that is in the table struct on the GPU.
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
 
+    /// Get the clockspeed and voltage ranges which the GPU allows.
+    fn get_allowed_ranges(&self) -> AllowedRanges;
+
     /// Gets the current maximum core clock.
     fn get_max_sclk(&self) -> Option<u32>;
+
+    /// Sets the maximum core clock.
+    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()>;
 
     /// Gets the current maximum memory clock.
     fn get_max_mclk(&self) -> Option<u32>;
