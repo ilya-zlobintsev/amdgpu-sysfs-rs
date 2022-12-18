@@ -209,6 +209,7 @@ pub struct Temperature {
 /// The way the fan speed is controlled.
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum FanControlMethod {
     /// No fan speed control.
     None = 0,

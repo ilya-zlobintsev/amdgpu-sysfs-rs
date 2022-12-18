@@ -134,6 +134,16 @@ pub struct AllowedRanges {
     pub vddc: Option<Range>,
 }
 
+impl Default for AllowedRanges {
+    fn default() -> Self {
+        Self {
+            sclk: Range::empty(),
+            mclk: None,
+            vddc: None,
+        }
+    }
+}
+
 /// A range.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -168,6 +178,14 @@ impl Range {
             max: Some(max),
         }
     }
+
+    /// Creates an empty range.
+    pub fn empty() -> Self {
+        Self {
+            min: None,
+            max: None,
+        }
+    }
 }
 
 /// Represents a combination of a clockspeed and voltage. May be used in different context based on the table format.
@@ -180,19 +198,23 @@ pub struct ClocksLevel {
     pub voltage: u32,
 }
 
+impl ClocksLevel {
+    /// Create a new clocks level.
+    pub fn new(clockspeed: u32, voltage: u32) -> Self {
+        Self {
+            clockspeed,
+            voltage,
+        }
+    }
+}
+
 fn parse_level_line(line: &str, i: usize) -> Result<(ClocksLevel, usize)> {
     let mut split = line.split_whitespace();
     let num = parse_line_item(&mut split, i, "level number", &[":"])?;
     let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["mhz"])?;
     let voltage = parse_line_item(&mut split, i, "voltage", &["mv"])?;
 
-    Ok((
-        ClocksLevel {
-            clockspeed,
-            voltage,
-        },
-        num,
-    ))
+    Ok((ClocksLevel::new(clockspeed, voltage), num))
 }
 
 fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Result<()> {
@@ -236,6 +258,13 @@ impl PowerTableHandle {
         self.writer.flush()?;
         Ok(())
     }
+}
+
+#[cfg(test)]
+fn arr_commands<const N: usize>(commands: [&str; N]) -> String {
+    let mut output = commands.join("\n");
+    output.push('\n');
+    output
 }
 
 #[cfg(test)]

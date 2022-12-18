@@ -150,28 +150,30 @@ impl GpuHandle {
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
-    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<(Vec<String>, u8)> {
+    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<PowerLevels> {
         self.read_file(kind.as_filename()).and_then(|content| {
-            let mut power_levels = Vec::new();
-            let mut active = 0;
+            let mut levels = Vec::new();
+            let mut active = None;
 
             for mut line in content.trim().split('\n') {
                 if let Some(stripped) = line.strip_suffix('*') {
                     line = stripped;
 
                     if let Some(identifier) = stripped.split(':').next() {
-                        active = identifier
-                            .trim()
-                            .parse()
-                            .context("Unexpected power level identifier")?;
+                        active = Some(
+                            identifier
+                                .trim()
+                                .parse()
+                                .context("Unexpected power level identifier")?,
+                        );
                     }
                 }
                 if let Some(s) = line.split(':').last() {
-                    power_levels.push(s.trim().to_string());
+                    levels.push(s.trim().to_string());
                 }
             }
 
-            Ok((power_levels, active))
+            Ok(PowerLevels { levels, active })
         })
     }
 
@@ -225,6 +227,9 @@ impl SysFS for GpuHandle {
 
 /// Type of a power state.
 #[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum PowerStateKind {
     CoreClock,
     MemoryClock,
@@ -253,7 +258,7 @@ impl PowerStateKind {
 /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[non_exhaustive]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum PerformanceLevel {
     /// When auto is selected, the driver will attempt to dynamically select the optimal power profile for current conditions in the driver.
     Auto,
@@ -302,4 +307,14 @@ impl fmt::Display for PerformanceLevel {
             }
         )
     }
+}
+
+/// List of power levels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PowerLevels {
+    /// List of possible levels.
+    pub levels: Vec<String>,
+    /// The currently active level.
+    pub active: Option<usize>,
 }

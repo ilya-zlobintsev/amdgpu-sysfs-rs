@@ -132,7 +132,7 @@ enum Section {
 #[cfg(test)]
 mod tests {
     use super::{ClocksLevel, Table};
-    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksTable, Range};
+    use crate::gpu_handle::overdrive::{arr_commands, AllowedRanges, ClocksTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
@@ -182,7 +182,7 @@ mod tests {
         table.write_commands(&mut buf).unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
-        let mut expected_commands = [
+        let expected_commands = arr_commands([
             "s 0 300 750",
             "s 1 600 769",
             "s 2 900 912",
@@ -194,11 +194,9 @@ mod tests {
             "m 0 300 750",
             "m 1 1000 825",
             "m 2 1750 975",
-        ]
-        .join("\n");
-        expected_commands.push('\n');
+        ]);
 
-        assert_eq!(commands, expected_commands);
+        assert_eq!(expected_commands, commands);
     }
 
     #[test]

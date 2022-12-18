@@ -40,6 +40,10 @@ impl ClocksTable for Table {
             }
         }
 
+        for (i, level) in self.vddc_curve.iter().enumerate() {
+            write_vddc_curve_line(writer, i, level.clockspeed, level.voltage)?;
+        }
+
         Ok(())
     }
 
@@ -62,7 +66,7 @@ impl FromStr for Table {
         let mut current_mclk_range = None;
         let mut allowed_sclk_range = None;
         let mut allowed_mclk_range = None;
-        let mut vddc_curve = Vec::new();
+        let mut vddc_curve = Vec::with_capacity(3);
 
         let mut i = 1;
         for line in s.lines().map(str::trim).filter(|line| !line.is_empty()) {
@@ -174,17 +178,29 @@ fn parse_min_max_line(line: &str, i: usize, range: &mut Option<Range>) -> Result
 fn write_clockspeed_line<W: Write>(
     writer: &mut W,
     symbol: char,
-    index: u8,
+    index: usize,
     clockspeed: u32,
 ) -> Result<()> {
     writeln!(writer, "{symbol} {index} {clockspeed}")?;
     Ok(())
 }
 
+fn write_vddc_curve_line<W: Write>(
+    writer: &mut W,
+    index: usize,
+    clockspeed: u32,
+    voltage: u32,
+) -> Result<()> {
+    writeln!(writer, "vc {index} {clockspeed} {voltage}")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::Table;
-    use crate::gpu_handle::overdrive::{AllowedRanges, ClocksLevel, ClocksTable, Range};
+    use crate::gpu_handle::overdrive::{
+        arr_commands, AllowedRanges, ClocksLevel, ClocksTable, Range,
+    };
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
@@ -200,11 +216,8 @@ mod tests {
         assert_eq!(table.current_sclk_range, Range::full(800, 2100));
         assert_eq!(table.current_mclk_range, Range::max(875));
 
-        let vddc_curve =
-            [(800, 711), (1450, 801), (2100, 1191)].map(|(clockspeed, voltage)| ClocksLevel {
-                clockspeed,
-                voltage,
-            });
+        let vddc_curve = [(800, 711), (1450, 801), (2100, 1191)]
+            .map(|(clockspeed, voltage)| ClocksLevel::new(clockspeed, voltage));
         assert_eq!(table.vddc_curve, vddc_curve);
 
         let allowed_ranges = AllowedRanges {
@@ -229,9 +242,34 @@ mod tests {
         table.write_commands(&mut buf).unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
-        let mut expected_commands = ["s 0 800", "s 1 2100", "m 1 875"].join("\n");
-        expected_commands.push('\n');
+        let expected_commands = arr_commands([
+            "s 0 800",
+            "s 1 2100",
+            "m 1 875",
+            "vc 0 800 711",
+            "vc 1 1450 801",
+            "vc 2 2100 1191",
+        ]);
 
-        assert_eq!(commands, expected_commands);
+        assert_eq!(expected_commands, commands);
+    }
+
+    #[test]
+    fn write_commands_custom_5700xt() {
+        let table = Table {
+            current_sclk_range: Range::empty(),
+            current_mclk_range: Range::full(500, 1000),
+            vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
+            allowed_ranges: AllowedRanges::default(),
+        };
+
+        let mut buf = Vec::new();
+        table.write_commands(&mut buf).unwrap();
+        let commands = String::from_utf8(buf).unwrap();
+
+        let expected_commands =
+            arr_commands(["m 0 500", "m 1 1000", "vc 0 300 600", "vc 1 1000 1000"]);
+
+        assert_eq!(expected_commands, commands);
     }
 }
