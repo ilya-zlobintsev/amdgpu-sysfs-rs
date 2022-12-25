@@ -1,3 +1,5 @@
+//! Handle on a GPU
+#[cfg(feature = "overdrive")]
 pub mod overdrive;
 
 use crate::{
@@ -9,6 +11,11 @@ use crate::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
+#[cfg(feature = "overdrive")]
+use {
+    self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle},
+    std::{fs::File, io::BufWriter},
+};
 
 /// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
 #[derive(Clone, Debug)]
@@ -27,7 +34,7 @@ impl GpuHandle {
     pub fn new_from_path(sysfs_path: PathBuf) -> Result<Self> {
         let mut hw_monitors = Vec::new();
 
-        if let Ok(hw_mons_iter) = std::fs::read_dir(sysfs_path.join("hwmon")) {
+        if let Ok(hw_mons_iter) = fs::read_dir(sysfs_path.join("hwmon")) {
             for hw_mon_dir in hw_mons_iter.flatten() {
                 if let Ok(hw_mon) = HwMon::new_from_path(hw_mon_dir.path()) {
                     hw_monitors.push(hw_mon);
@@ -78,21 +85,27 @@ impl GpuHandle {
         }
     }
 
+    /// Gets the pci slot name of the card.
     pub fn get_pci_slot_name(&self) -> Option<&str> {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
+    /// Gets the current PCIe link speed.
     pub fn get_current_link_speed(&self) -> Result<String> {
         self.read_file("current_link_speed")
     }
 
+    /// Gets the current PCIe link width.
     pub fn get_current_link_width(&self) -> Result<String> {
         self.read_file("current_link_width")
     }
 
+    /// Gets the maximum possible PCIe link speed.
     pub fn get_max_link_speed(&self) -> Result<String> {
         self.read_file("max_link_speed")
     }
+
+    /// Gets the maximum possible PCIe link width.
     pub fn get_max_link_width(&self) -> Result<String> {
         self.read_file("max_link_width")
     }
@@ -118,7 +131,7 @@ impl GpuHandle {
         Ok(raw_busy.parse()?)
     }
 
-    /// Returns the GPU VBIOS version. Empty if the GPU doesn't report one.
+    /// Returns the GPU VBIOS version.
     pub fn get_vbios_version(&self) -> Result<String> {
         self.read_file("vbios_version")
     }
@@ -135,28 +148,30 @@ impl GpuHandle {
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
-    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<(Vec<String>, u8)> {
-        self.read_file(kind.to_filename()).and_then(|content| {
-            let mut power_levels = Vec::new();
-            let mut active = 0;
+    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<PowerLevels> {
+        self.read_file(kind.as_filename()).and_then(|content| {
+            let mut levels = Vec::new();
+            let mut active = None;
 
             for mut line in content.trim().split('\n') {
                 if let Some(stripped) = line.strip_suffix('*') {
                     line = stripped;
 
                     if let Some(identifier) = stripped.split(':').next() {
-                        active = identifier
-                            .trim()
-                            .parse()
-                            .context("Unexpected power level identifier")?;
+                        active = Some(
+                            identifier
+                                .trim()
+                                .parse()
+                                .context("Unexpected power level identifier")?,
+                        );
                     }
                 }
                 if let Some(s) = line.split(':').last() {
-                    power_levels.push(s.trim().to_string());
+                    levels.push(s.trim().to_string());
                 }
             }
 
-            Ok((power_levels, active))
+            Ok(PowerLevels { levels, active })
         })
     }
 
@@ -173,7 +188,7 @@ impl GpuHandle {
                     s.push(' ');
                 }
 
-                Ok(self.write_file(kind.to_filename(), s)?)
+                Ok(self.write_file(kind.as_filename(), s)?)
             }
             _ => Err(ErrorKind::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
@@ -181,6 +196,26 @@ impl GpuHandle {
             )
             .into()),
         }
+    }
+
+    /// Reads the clocks table from `pp_od_clk_voltage`.
+    #[cfg(feature = "overdrive")]
+    pub fn get_clocks_table(&self) -> Result<ClocksTableGen> {
+        self.read_file_parsed("pp_od_clk_voltage")
+    }
+
+    /// Writes the given clocks table to `pp_od_clk_voltage` and returns a handle.
+    /// The handle must then be used to either commit or reset the changes.
+    #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
+    #[cfg(feature = "overdrive")]
+    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<PowerTableHandle> {
+        let path = self.sysfs_path.join("pp_od_clk_voltage");
+        let file = File::open(path)?;
+        let mut writer = BufWriter::new(file);
+
+        table.write_commands(&mut writer)?;
+
+        Ok(PowerTableHandle::new(writer))
     }
 }
 
@@ -190,6 +225,11 @@ impl SysFS for GpuHandle {
     }
 }
 
+/// Type of a power state.
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum PowerStateKind {
     CoreClock,
     MemoryClock,
@@ -200,7 +240,8 @@ pub enum PowerStateKind {
 }
 
 impl PowerStateKind {
-    pub fn to_filename(&self) -> &str {
+    /// Gets the filename of a given power state.
+    pub fn as_filename(&self) -> &str {
         match self {
             PowerStateKind::CoreClock => "pp_dpm_sclk",
             PowerStateKind::MemoryClock => "pp_dpm_mclk",
@@ -212,12 +253,20 @@ impl PowerStateKind {
     }
 }
 
+/// Performance level to be used by the GPU.
+///
+/// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum PerformanceLevel {
+    /// When auto is selected, the driver will attempt to dynamically select the optimal power profile for current conditions in the driver.
     Auto,
+    /// When low is selected, the clocks are forced to the lowest power state.
     Low,
+    /// When high is selected, the clocks are forced to the highest power state.
     High,
+    /// When manual is selected, power states can be manually adjusted via `pp_dpm_*` files ([`GpuHandle::set_enabled_power_levels`]) and `pp_od_clk_voltage` ([`GpuHandle::set_clocks_table`]).
     Manual,
 }
 
@@ -258,4 +307,14 @@ impl fmt::Display for PerformanceLevel {
             }
         )
     }
+}
+
+/// List of power levels.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PowerLevels {
+    /// List of possible levels.
+    pub levels: Vec<String>,
+    /// The currently active level.
+    pub active: Option<usize>,
 }

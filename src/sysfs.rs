@@ -1,13 +1,16 @@
+//! Utilities for working with SysFS.
 use crate::{
     error::{Error, ErrorContext},
     Result,
 };
 use std::{fs, path::Path, str::FromStr};
 
+/// General functionality of a SysFS.
 pub trait SysFS {
+    /// Gets the path of the current SysFS.
     fn get_path(&self) -> &Path;
 
-    /// Reads the content of a file in the `SysFs`.
+    /// Reads the content of a file in the `SysFS`.
     fn read_file(&self, file: &str) -> Result<String> {
         Ok(fs::read_to_string(self.get_path().join(file))
             .with_context(|| format!("Could not read file {file}"))?
@@ -24,7 +27,7 @@ pub trait SysFS {
             .map_err(|err: E| Error::basic_parse_error(err.to_string()))
     }
 
-    /// Write to a file in the `SysFs`.
+    /// Write to a file in the `SysFS`.
     fn write_file<C: AsRef<[u8]> + Send>(&self, file: &str, contents: C) -> Result<()> {
         Ok(fs::write(self.get_path().join(file), contents)?)
     }

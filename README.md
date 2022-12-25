@@ -18,3 +18,5 @@ let gpu_usage = gpu_handle.get_busy_percent().unwrap();
     
 let total_vram = gpu_handle.get_total_vram().unwrap(); 
 ```
+
+See the [documentation](https://docs.rs/amdgpu-sysfs/) for more info.

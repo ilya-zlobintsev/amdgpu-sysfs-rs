@@ -1,3 +1,4 @@
+//! Hardware monitoring
 use crate::{
     error::{ErrorContext, ErrorKind},
     sysfs::SysFS,
@@ -193,23 +194,33 @@ impl SysFS for HwMon {
     }
 }
 
+/// Temperature reported by the GPU.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Temperature {
+    /// The current temperature.
     pub current: Option<f32>,
+    /// The maximum allowed temperature.
     pub crit: Option<f32>,
+    /// The minimum allowed temperature.
     pub crit_hyst: Option<f32>,
 }
 
+/// The way the fan speed is controlled.
 #[derive(Debug, Clone, Copy)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum FanControlMethod {
+    /// No fan speed control.
     None = 0,
+    /// Manual fan speed control via the PWM interface.
     Manual = 1,
+    /// Automatic fan speed control (by the kernel).
     Auto = 2,
 }
 
 impl FanControlMethod {
+    /// Create [FanControlMethod] from a digit in the SysFS.
     pub fn from_repr(repr: u32) -> Option<Self> {
         match repr {
             0 => Some(Self::None),
