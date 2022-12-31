@@ -1,6 +1,10 @@
 //! Handle on a GPU
 #[cfg(feature = "overdrive")]
 pub mod overdrive;
+#[macro_use]
+mod power_levels;
+
+pub use power_levels::{PowerLevelKind, PowerLevels};
 
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
@@ -10,7 +14,13 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt, fs, path::PathBuf, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    fs,
+    path::PathBuf,
+    str::FromStr,
+};
 #[cfg(feature = "overdrive")]
 use {
     self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle},
@@ -148,8 +158,13 @@ impl GpuHandle {
     }
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
-    pub fn get_power_levels(&self, kind: PowerStateKind) -> Result<PowerLevels> {
-        self.read_file(kind.as_filename()).and_then(|content| {
+    /// `T` is the type that values should be deserialized into.
+    pub fn get_clock_levels<T>(&self, kind: PowerLevelKind) -> Result<PowerLevels<T>>
+    where
+        T: FromStr,
+        <T as FromStr>::Err: Display,
+    {
+        self.read_file(kind.filename()).and_then(|content| {
             let mut levels = Vec::new();
             let mut active = None;
 
@@ -167,7 +182,25 @@ impl GpuHandle {
                     }
                 }
                 if let Some(s) = line.split(':').last() {
-                    levels.push(s.trim().to_string());
+                    let parse_result = if let Some(suffix) = kind.value_suffix() {
+                        let raw_value = s.trim().to_lowercase();
+                        let value = raw_value.strip_suffix(suffix).ok_or_else(|| {
+                            ErrorKind::ParseError {
+                                msg: format!("Level did not have the expected suffix {suffix}"),
+                                line: levels.len() + 1,
+                            }
+                        })?;
+                        T::from_str(value)
+                    } else {
+                        let value = s.trim();
+                        T::from_str(value)
+                    };
+
+                    let parsed_value = parse_result.map_err(|err| ErrorKind::ParseError {
+                        msg: format!("Could not deserialize power level value: {err}"),
+                        line: levels.len() + 1,
+                    })?;
+                    levels.push(parsed_value);
                 }
             }
 
@@ -175,10 +208,14 @@ impl GpuHandle {
         })
     }
 
+    impl_get_clocks_levels!(get_core_clock_levels, PowerLevelKind::CoreClock, u64);
+    impl_get_clocks_levels!(get_memory_clock_levels, PowerLevelKind::MemoryClock, u64);
+    impl_get_clocks_levels!(get_pcie_clock_levels, PowerLevelKind::PcieSpeed, String);
+
     /// Sets the enabled power levels for a power state kind to a given list of levels. This means that only the given power levels will be allowed.
     ///
     /// Can only be used if `power_force_performance_level` is set to `manual`.
-    pub fn set_enabled_power_levels(&self, kind: PowerStateKind, levels: &[u8]) -> Result<()> {
+    pub fn set_enabled_power_levels(&self, kind: PowerLevelKind, levels: &[u8]) -> Result<()> {
         match self.get_power_force_performance_level()? {
             PerformanceLevel::Manual => {
                 let mut s = String::new();
@@ -188,7 +225,7 @@ impl GpuHandle {
                     s.push(' ');
                 }
 
-                Ok(self.write_file(kind.as_filename(), s)?)
+                Ok(self.write_file(kind.filename(), s)?)
             }
             _ => Err(ErrorKind::NotAllowed(
                 "power_force_performance level needs to be set to 'manual' to adjust power levels"
@@ -222,34 +259,6 @@ impl GpuHandle {
 impl SysFS for GpuHandle {
     fn get_path(&self) -> &std::path::Path {
         &self.sysfs_path
-    }
-}
-
-/// Type of a power state.
-#[allow(missing_docs)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
-pub enum PowerStateKind {
-    CoreClock,
-    MemoryClock,
-    SOCClock,
-    FabricClock,
-    DCEFClock,
-    PcieSpeed,
-}
-
-impl PowerStateKind {
-    /// Gets the filename of a given power state.
-    pub fn as_filename(&self) -> &str {
-        match self {
-            PowerStateKind::CoreClock => "pp_dpm_sclk",
-            PowerStateKind::MemoryClock => "pp_dpm_mclk",
-            PowerStateKind::SOCClock => "pp_dpm_socclk",
-            PowerStateKind::FabricClock => "pp_dpm_fclk",
-            PowerStateKind::DCEFClock => "pp_dpm_dcefclk",
-            PowerStateKind::PcieSpeed => "pp_dpm_pcie",
-        }
     }
 }
 
@@ -307,14 +316,4 @@ impl fmt::Display for PerformanceLevel {
             }
         )
     }
-}
-
-/// List of power levels.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerLevels {
-    /// List of possible levels.
-    pub levels: Vec<String>,
-    /// The currently active level.
-    pub active: Option<usize>,
 }
