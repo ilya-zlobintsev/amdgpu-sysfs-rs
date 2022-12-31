@@ -7,23 +7,23 @@ use amdgpu_sysfs::{
 use std::collections::HashMap;
 
 test_with_handle! {
-    "rx580",
+    "vega56",
     pci_ids => {
-        GpuHandle::get_pci_id, Some(("1002", "67DF")),
-        GpuHandle::get_pci_subsys_id, Some(("1DA2", "E387")),
+        GpuHandle::get_pci_id, Some(("1002", "687F")),
+        GpuHandle::get_pci_subsys_id, Some(("1043", "0555")),
     },
     driver => {
         GpuHandle::get_driver, "amdgpu"
     },
     busy_percent => {
-        GpuHandle::get_busy_percent, Ok(11)
+        GpuHandle::get_busy_percent, Ok(0)
     },
     vram => {
-        GpuHandle::get_total_vram, Ok(4096 * 1024 * 1024),
-        GpuHandle::get_used_vram, Ok(512 * 1024 * 1024),
+        GpuHandle::get_total_vram, Ok(8176 * 1024 * 1024),
+        GpuHandle::get_used_vram, Ok(16224 * 1024),
     },
     vbios => {
-        GpuHandle::get_vbios_version, Ok("113-1E3871U-O4C".to_owned())
+        GpuHandle::get_vbios_version, Ok("115-D050PIL-100".to_owned())
     },
     performance_level => {
         GpuHandle::get_power_force_performance_level, Ok(PerformanceLevel::Auto),
@@ -38,34 +38,35 @@ test_with_handle! {
         GpuHandle::get_core_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                300,
-                600,
-                900,
-                1145,
-                1215,
-                1257,
-                1300,
-                1366
+                852,
+                991,
+                1138,
+                1269,
+                1312,
+                1474,
+                1538,
+                1590
             ],
-            active: Some(2)
+            active: Some(0)
         })
     },
     pp_dpm_mclk => {
         GpuHandle::get_memory_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                300,
-                1000,
-                1750,
+                167,
+                500,
+                700,
+                920,
             ],
-            active: Some(2)
+            active: Some(0)
         })
     },
     pp_dpm_pcie => {
         GpuHandle::get_pcie_clock_levels,
         Ok(PowerLevels {
             levels: [
-                "2.5GT/s, x8",
+                "8.0GT/s, x16",
                 "8.0GT/s, x16"
             ].map(str::to_owned).to_vec(),
             active: Some(1)
@@ -74,26 +75,44 @@ test_with_handle! {
 }
 
 test_with_hw_mon! {
-    "rx580",
+    "vega56",
     fan_info => {
-        HwMon::get_fan_pwm, Ok(35),
-        HwMon::get_fan_current, Ok(595),
-        HwMon::get_fan_target, Ok(595),
+        HwMon::get_fan_pwm, Ok(0),
+        HwMon::get_fan_current, Ok(5),
+        HwMon::get_fan_target, Ok(5),
         HwMon::get_fan_min, Ok(0),
-        HwMon::get_fan_max, Ok(3200),
+        HwMon::get_fan_max, Ok(3500),
     },
     temperatures => {
         HwMon::get_temps,
-        HashMap::from([(
+        HashMap::from([
+        (
             "edge".to_owned(),
             Temperature {
-                current: Some(44.0),
-                crit: Some(94.0),
+                current: Some(38.0),
+                crit: Some(85.0),
                 crit_hyst: Some(-273.15)
             }
-        )])
+        ),
+        (
+            "junction".to_owned(),
+            Temperature {
+                current: Some(38.0),
+                crit: Some(105.0),
+                crit_hyst: Some(-273.15)
+            }
+        ),
+        (
+            "mem".to_owned(),
+            Temperature {
+                current: Some(39.0),
+                crit: Some(95.0),
+                crit_hyst: Some(-273.15)
+            }
+        )
+        ])
     },
     gpu_voltage => {
-        HwMon::get_gpu_voltage, Ok(975)
+        HwMon::get_gpu_voltage, Ok(762)
     },
 }
