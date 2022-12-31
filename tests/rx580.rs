@@ -1,7 +1,7 @@
 mod sysfs;
 
 use amdgpu_sysfs::{
-    gpu_handle::{GpuHandle, PerformanceLevel},
+    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels},
     hw_mon::{HwMon, Temperature},
 };
 use std::collections::HashMap;
@@ -34,6 +34,43 @@ test_with_handle! {
         GpuHandle::get_max_link_speed, Ok("8.0 GT/s PCIe".to_owned()),
         GpuHandle::get_max_link_width, Ok("16".to_owned()),
     },
+    pp_dpm_sclk => {
+        GpuHandle::get_core_clocks_levels,
+        Ok(PowerLevels {
+            levels: vec![
+                300,
+                600,
+                900,
+                1145,
+                1215,
+                1257,
+                1300,
+                1366
+            ],
+            active: Some(2)
+        })
+    },
+    pp_dpm_mclk => {
+        GpuHandle::get_memory_clock_levels,
+        Ok(PowerLevels {
+            levels: vec![
+                300,
+                1000,
+                1750,
+            ],
+            active: Some(2)
+        })
+    },
+    pp_dpm_pcie => {
+        GpuHandle::get_pcie_clocks_levels,
+        Ok(PowerLevels {
+            levels: [
+                "2.5GT/s, x8",
+                "8.0GT/s, x16"
+            ].map(str::to_owned).to_vec(),
+            active: Some(1)
+        })
+    }
 }
 
 test_with_hw_mon! {
