@@ -35,7 +35,7 @@ test_with_handle! {
         GpuHandle::get_max_link_width, Ok("16".to_owned()),
     },
     pp_dpm_sclk => {
-        GpuHandle::get_core_clocks_levels,
+        GpuHandle::get_core_clock_levels,
         Ok(PowerLevels {
             levels: vec![
                 300,
@@ -62,7 +62,7 @@ test_with_handle! {
         })
     },
     pp_dpm_pcie => {
-        GpuHandle::get_pcie_clocks_levels,
+        GpuHandle::get_pcie_clock_levels,
         Ok(PowerLevels {
             levels: [
                 "2.5GT/s, x8",
