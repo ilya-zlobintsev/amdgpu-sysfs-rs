@@ -12,6 +12,7 @@ use enum_dispatch::enum_dispatch;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{
+    convert::TryFrom,
     fs::File,
     io::{BufWriter, Write},
     str::{FromStr, SplitWhitespace},
@@ -206,6 +207,18 @@ impl Range {
         Self {
             min: None,
             max: None,
+        }
+    }
+}
+
+impl TryFrom<Range> for (u32, u32) {
+    type Error = ();
+
+    fn try_from(value: Range) -> std::result::Result<Self, Self::Error> {
+        if let (Some(min), Some(max)) = (value.min, value.max) {
+            Ok((min, max))
+        } else {
+            Err(())
         }
     }
 }
