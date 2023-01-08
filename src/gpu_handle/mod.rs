@@ -23,7 +23,7 @@ use std::{
 };
 #[cfg(feature = "overdrive")]
 use {
-    self::overdrive::{ClocksTable, ClocksTableGen, PowerTableHandle},
+    self::overdrive::{ClocksTable, ClocksTableGen},
     std::{fs::File, io::BufWriter},
 };
 
@@ -241,18 +241,32 @@ impl GpuHandle {
         self.read_file_parsed("pp_od_clk_voltage")
     }
 
-    /// Writes the given clocks table to `pp_od_clk_voltage` and returns a handle.
-    /// The handle must then be used to either commit or reset the changes.
-    #[must_use = "Changes have to be either commited or reset via the handle, otherwise they will be lost"]
+    /// Writes and commits the given clocks table to `pp_od_clk_voltage`.
     #[cfg(feature = "overdrive")]
-    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<PowerTableHandle> {
+    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<()> {
+        use std::io::Write;
+
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let file = File::open(path)?;
         let mut writer = BufWriter::new(file);
 
         table.write_commands(&mut writer)?;
+        writer.write_all(b"c\n")?;
+        writer.flush()?;
 
-        Ok(PowerTableHandle::new(writer))
+        Ok(())
+    }
+
+    /// Resets the clocks table to the default configuration.
+    #[cfg(feature = "overdrive")]
+    pub fn reset_clocks_table(&self) -> Result<()> {
+        use std::io::Write;
+
+        let path = self.sysfs_path.join("pp_od_clk_voltage");
+        let mut file = File::open(path)?;
+        file.write_all(b"r\n")?;
+
+        Ok(())
     }
 }
 

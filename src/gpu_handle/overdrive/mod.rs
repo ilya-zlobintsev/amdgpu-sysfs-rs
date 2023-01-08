@@ -13,8 +13,7 @@ use enum_dispatch::enum_dispatch;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::TryFrom,
-    fs::File,
-    io::{BufWriter, Write},
+    io::Write,
     str::{FromStr, SplitWhitespace},
 };
 
@@ -266,33 +265,6 @@ fn push_level_line(line: &str, levels: &mut Vec<ClocksLevel>, i: usize) -> Resul
 
     levels.push(level);
     Ok(())
-}
-
-/// A handle to commit or reset settings after clocks table has been updated.
-pub struct PowerTableHandle {
-    writer: BufWriter<File>,
-}
-
-impl PowerTableHandle {
-    pub(crate) fn new(writer: BufWriter<File>) -> Self {
-        Self { writer }
-    }
-}
-
-impl PowerTableHandle {
-    /// Commit the pending changes.
-    pub fn commit(mut self) -> Result<()> {
-        self.writer.write_all(b"c\n")?;
-        self.writer.flush()?;
-        Ok(())
-    }
-
-    /// Reset the pending changes.
-    pub fn reset(mut self) -> Result<()> {
-        self.writer.write_all(b"r\n")?;
-        self.writer.flush()?;
-        Ok(())
-    }
 }
 
 #[cfg(test)]
