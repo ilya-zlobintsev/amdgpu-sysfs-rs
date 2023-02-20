@@ -76,6 +76,16 @@ impl ClocksTable for Table {
         Ok(())
     }
 
+    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+        self.sclk_levels
+            .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .voltage = voltage;
+        Ok(())
+    }
+
     fn get_max_sclk_voltage(&self) -> Option<u32> {
         self.sclk_levels.last().map(|level| level.voltage)
     }
@@ -228,7 +238,12 @@ mod tests {
 
     #[test]
     fn table_into_commands() {
-        let table = Table::from_str(TABLE_RX580).unwrap();
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+
+        table.set_max_sclk(1500).unwrap();
+        table.set_max_mclk(2250).unwrap();
+        table.set_max_voltage(1200).unwrap();
+
         let mut buf = Vec::new();
         table.write_commands(&mut buf).unwrap();
         let commands = String::from_utf8(buf).unwrap();
@@ -241,10 +256,10 @@ mod tests {
             "s 4 1215 1150",
             "s 5 1257 1150",
             "s 6 1300 1150",
-            "s 7 1366 1150",
+            "s 7 1500 1200",
             "m 0 300 750",
             "m 1 1000 825",
-            "m 2 1750 975",
+            "m 2 2250 975",
         ]);
 
         assert_eq!(expected_commands, commands);

@@ -58,6 +58,16 @@ pub trait ClocksTable: FromStr {
     /// Sets the maximum memory clock (without checking if it's in the allowed range).
     fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
 
+    /// Sets the voltage to be used at the maximum clockspeed.
+    fn set_max_voltage(&mut self, voltage: u32) -> Result<()> {
+        let range = self.get_max_voltage_range();
+        check_clockspeed_in_range(range, voltage)?;
+        self.set_max_voltage_unchecked(voltage)
+    }
+
+    /// Sets the voltage to be used at the maximum clockspeed (without checking if it's in the allowed range).
+    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()>;
+
     /// Gets the current maximum voltage (used on maximum clockspeed).
     fn get_max_sclk_voltage(&self) -> Option<u32>;
 }

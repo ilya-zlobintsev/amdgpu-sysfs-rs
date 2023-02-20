@@ -65,6 +65,9 @@ impl ClocksTable for Table {
 
     fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.current_sclk_range.max = Some(clockspeed);
+        if let Some(point) = self.vddc_curve.last_mut() {
+            point.clockspeed = clockspeed;
+        }
         Ok(())
     }
 
@@ -74,6 +77,16 @@ impl ClocksTable for Table {
 
     fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.current_mclk_range.max = Some(clockspeed);
+        Ok(())
+    }
+
+    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+        self.vddc_curve
+            .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any voltage curve points".to_owned())
+            })?
+            .voltage = voltage;
         Ok(())
     }
 
@@ -331,18 +344,23 @@ mod tests {
 
     #[test]
     fn write_commands_5700xt() {
-        let table = Table::from_str(TABLE_5700XT).unwrap();
+        let mut table = Table::from_str(TABLE_5700XT).unwrap();
+
+        table.set_max_sclk(2150).unwrap();
+        table.set_max_mclk(950).unwrap();
+        table.set_max_voltage(1200).unwrap();
+
         let mut buf = Vec::new();
         table.write_commands(&mut buf).unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands = arr_commands([
             "s 0 800",
-            "s 1 2100",
-            "m 1 875",
+            "s 1 2150",
+            "m 1 950",
             "vc 0 800 711",
             "vc 1 1450 801",
-            "vc 2 2100 1191",
+            "vc 2 2150 1200",
         ]);
 
         assert_eq!(expected_commands, commands);
