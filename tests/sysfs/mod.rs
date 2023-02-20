@@ -58,7 +58,7 @@ macro_rules! test_with_handle {
         $(
             #[test]
             fn $test_name() {
-                let (handle, _mockfs) = crate::sysfs::create_mock_gpu_handle($sysfs_name);
+                let (handle, _mockfs) = $crate::sysfs::create_mock_gpu_handle($sysfs_name);
                 $(
                     let value = $code(&handle);
                     pretty_assertions::assert_eq!(value, $expected);
@@ -74,7 +74,7 @@ macro_rules! test_with_hw_mon {
         $(
             #[test]
             fn $test_name() {
-                let (handle, _mockfs) = crate::sysfs::create_mock_gpu_handle($sysfs_name);
+                let (handle, _mockfs) = $crate::sysfs::create_mock_gpu_handle($sysfs_name);
                 let hw_mon = handle.hw_monitors.first().expect("Handle has no hw monitor");
                 $(
                     let value = $code(&hw_mon);

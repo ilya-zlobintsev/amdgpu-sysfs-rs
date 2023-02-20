@@ -23,16 +23,22 @@ pub trait ClocksTable: FromStr {
     /// Writes commands needed to apply the state that is in the table struct on the GPU.
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
 
-    /// Get the clockspeed and voltage ranges which the GPU allows.
-    fn get_allowed_ranges(&self) -> AllowedRanges;
+    /// Gets the core clock range usable at the highest power level.
+    fn get_max_sclk_range(&self) -> Option<Range>;
+
+    /// Gets the memory clock range usable at the highest power level.
+    fn get_max_mclk_range(&self) -> Option<Range>;
+
+    /// Gets the voltage range usable at the highest power level.
+    fn get_max_voltage_range(&self) -> Option<Range>;
 
     /// Gets the current maximum core clock.
     fn get_max_sclk(&self) -> Option<u32>;
 
     /// Sets the maximum core clock.
     fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
-        let allowed_ranges = self.get_allowed_ranges();
-        check_clockspeed_in_range(Some(allowed_ranges.sclk), clockspeed)?;
+        let range = self.get_max_sclk_range();
+        check_clockspeed_in_range(range, clockspeed)?;
         self.set_max_sclk_unchecked(clockspeed)
     }
 
@@ -44,8 +50,8 @@ pub trait ClocksTable: FromStr {
 
     /// Sets the maximum memory clock.
     fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
-        let allowed_ranges = self.get_allowed_ranges();
-        check_clockspeed_in_range(allowed_ranges.mclk, clockspeed)?;
+        let range = self.get_max_mclk_range();
+        check_clockspeed_in_range(range, clockspeed)?;
         self.set_max_mclk_unchecked(clockspeed)
     }
 
@@ -142,28 +148,6 @@ where
         }
         .into()
     })
-}
-
-/// The ranges which the GPU allows to be used.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct AllowedRanges {
-    /// Clocks range for sclk (in MHz). Should be present on all GPUs.
-    pub sclk: Range,
-    /// Clocks range for mclk (in MHz). Present on discrete GPUs only.
-    pub mclk: Option<Range>,
-    /// Voltage range (in mV). Present on Vega10 and older GPUs only.
-    pub vddc: Option<Range>,
-}
-
-impl Default for AllowedRanges {
-    fn default() -> Self {
-        Self {
-            sclk: Range::empty(),
-            mclk: None,
-            vddc: None,
-        }
-    }
 }
 
 /// A range.
@@ -304,5 +288,13 @@ mod tests {
         check_clockspeed_in_range(range, 1000).unwrap();
         check_clockspeed_in_range(range, 1001).unwrap_err();
         check_clockspeed_in_range(range, 250).unwrap_err();
+    }
+
+    #[test]
+    fn parse_range_line_voltage_point() {
+        let line = "VDDC_CURVE_SCLK[2]:     800Mhz       2150Mhz";
+        let (range, name) = parse_range_line(line, 0).unwrap();
+        assert_eq!(range, Range::full(800, 2150));
+        assert_eq!(name, "VDDC_CURVE_SCLK[2]");
     }
 }

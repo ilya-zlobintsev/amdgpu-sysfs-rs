@@ -1,5 +1,5 @@
 //! The format used by Vega10 and older GPUs.
-use super::{parse_range_line, push_level_line, AllowedRanges, ClocksLevel, ClocksTable};
+use super::{parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
 use crate::{
     error::{Error, ErrorKind::ParseError},
     Result,
@@ -17,7 +17,7 @@ pub struct Table {
     /// List of memory clock levels.
     pub mclk_levels: Vec<ClocksLevel>,
     /// The allowed ranges for clockspeeds and voltages.
-    pub allowed_ranges: AllowedRanges,
+    pub od_range: OdRange,
 }
 
 impl ClocksTable for Table {
@@ -35,8 +35,16 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn get_allowed_ranges(&self) -> AllowedRanges {
-        self.allowed_ranges
+    fn get_max_sclk_range(&self) -> Option<Range> {
+        Some(self.od_range.sclk)
+    }
+
+    fn get_max_mclk_range(&self) -> Option<Range> {
+        self.od_range.mclk
+    }
+
+    fn get_max_voltage_range(&self) -> Option<Range> {
+        self.od_range.vddc
     }
 
     fn get_max_sclk(&self) -> Option<u32> {
@@ -71,6 +79,18 @@ impl ClocksTable for Table {
     fn get_max_sclk_voltage(&self) -> Option<u32> {
         self.sclk_levels.last().map(|level| level.voltage)
     }
+}
+
+/// The ranges for overclocking values which the GPU allows to be used.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct OdRange {
+    /// Clocks range for sclk (in MHz). Should be present on all GPUs.
+    pub sclk: Range,
+    /// Clocks range for mclk (in MHz). Present on discrete GPUs only.
+    pub mclk: Option<Range>,
+    /// Voltage range (in mV). Present on Vega10 and older GPUs only.
+    pub vddc: Option<Range>,
 }
 
 impl FromStr for Table {
@@ -128,7 +148,7 @@ impl FromStr for Table {
         sclk_levels.shrink_to_fit();
         mclk_levels.shrink_to_fit();
 
-        let allowed_ranges = AllowedRanges {
+        let od_range = OdRange {
             sclk: sclk_range.ok_or_else(|| ParseError {
                 msg: "No sclk range found".to_owned(),
                 line: i,
@@ -140,7 +160,7 @@ impl FromStr for Table {
         Ok(Self {
             sclk_levels,
             mclk_levels,
-            allowed_ranges,
+            od_range,
         })
     }
 }
@@ -163,7 +183,7 @@ enum Section {
 #[cfg(test)]
 mod tests {
     use super::{ClocksLevel, Table};
-    use crate::gpu_handle::overdrive::{arr_commands, AllowedRanges, ClocksTable, Range};
+    use crate::gpu_handle::overdrive::{arr_commands, vega10::OdRange, ClocksTable, Range};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
@@ -195,7 +215,7 @@ mod tests {
                 clockspeed,
                 voltage,
             });
-        let ranges = AllowedRanges {
+        let ranges = OdRange {
             sclk: Range::full(300, 2000),
             mclk: Some(Range::full(300, 2250)),
             vddc: Some(Range::full(750, 1200)),
@@ -203,7 +223,7 @@ mod tests {
 
         assert_eq!(table.sclk_levels, sclk_levels);
         assert_eq!(table.mclk_levels, mclk_levels);
-        assert_eq!(table.allowed_ranges, ranges);
+        assert_eq!(table.od_range, ranges);
     }
 
     #[test]
@@ -249,5 +269,12 @@ mod tests {
         let mclk = table.get_max_mclk().unwrap();
         assert_eq!(mclk, 1800);
         assert_eq!(table.mclk_levels[2].clockspeed, 1800);
+
+        let sclk_range = table.get_max_sclk_range();
+        let mclk_range = table.get_max_mclk_range();
+        let voltage_range = table.get_max_voltage_range();
+        assert_eq!(sclk_range, Some(Range::full(300, 2000)));
+        assert_eq!(mclk_range, Some(Range::full(300, 2250)));
+        assert_eq!(voltage_range, Some(Range::full(750, 1200)));
     }
 }

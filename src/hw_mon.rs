@@ -123,7 +123,7 @@ impl HwMon {
 
     /// Sets the pulse width modulation fan level.
     pub fn set_fan_pwm(&self, pwm: u8) -> Result<()> {
-        self.write_file("pwm1", &pwm.to_string())
+        self.write_file("pwm1", pwm.to_string())
     }
 
     /// Gets the current fan speed in RPM.
@@ -152,7 +152,7 @@ impl HwMon {
 
     /// Sets the desired fan speed in RPM.
     pub fn set_fan_target(&self, target: u32) -> Result<()> {
-        self.write_file("fan1_target", &target.to_string())?;
+        self.write_file("fan1_target", target.to_string())?;
         Ok(())
     }
 
@@ -174,7 +174,7 @@ impl HwMon {
     /// Sets the fan control method (`pwm1_enable`).
     pub fn set_fan_control_method(&self, method: FanControlMethod) -> Result<()> {
         let repr = method as u32;
-        self.write_file("pwm1_enable", &repr.to_string())
+        self.write_file("pwm1_enable", repr.to_string())
     }
 
     /// Gets the GPU voltage in millivolts.
