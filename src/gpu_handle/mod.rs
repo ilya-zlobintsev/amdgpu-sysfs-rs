@@ -24,7 +24,7 @@ use std::{
 #[cfg(feature = "overdrive")]
 use {
     self::overdrive::{ClocksTable, ClocksTableGen},
-    std::{fs::File, io::BufWriter},
+    std::fs::File,
 };
 
 /// A `GpuHandle` represents a handle over a single GPU device, as exposed in the Linux SysFS.
@@ -247,12 +247,10 @@ impl GpuHandle {
         use std::io::Write;
 
         let path = self.sysfs_path.join("pp_od_clk_voltage");
-        let file = File::open(path)?;
-        let mut writer = BufWriter::new(file);
+        let mut file = File::create(path)?;
 
-        table.write_commands(&mut writer)?;
-        writer.write_all(b"c\n")?;
-        writer.flush()?;
+        table.write_commands(&mut file)?;
+        file.write_all(b"c\n")?;
 
         Ok(())
     }
