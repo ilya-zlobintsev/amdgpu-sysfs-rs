@@ -261,7 +261,7 @@ impl GpuHandle {
         use std::io::Write;
 
         let path = self.sysfs_path.join("pp_od_clk_voltage");
-        let mut file = File::open(path)?;
+        let mut file = File::create(path)?;
         file.write_all(b"r\n")?;
 
         Ok(())
