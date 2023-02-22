@@ -117,6 +117,7 @@ impl FromStr for Table {
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
                 "OD_RANGE:" => current_section = Some(Section::Range),
                 "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
+                "OD_VDDGFX_OFFSET:" => current_section = Some(Section::VddGfxOffset),
                 line => match current_section {
                     // Voltage points will overwrite maximum clock info, with the last one taking priority
                     Some(Section::Range) if line.starts_with("VDDC_CURVE_SCLK") => {
@@ -144,6 +145,7 @@ impl FromStr for Table {
                     Some(Section::Sclk) => parse_min_max_line(line, i, &mut current_sclk_range)?,
                     Some(Section::Mclk) => parse_min_max_line(line, i, &mut current_mclk_range)?,
                     Some(Section::VddcCurve) => push_level_line(line, &mut vddc_curve, i)?,
+                    Some(Section::VddGfxOffset) => (),
                     None => {
                         return Err(ParseError {
                             msg: "Unexpected line without section".to_owned(),
@@ -218,6 +220,7 @@ enum Section {
     Mclk,
     VddcCurve,
     Range,
+    VddGfxOffset,
 }
 
 fn parse_clockspeed_line(line: &str, i: usize) -> Result<(u32, usize)> {
@@ -277,12 +280,17 @@ mod tests {
     use crate::gpu_handle::overdrive::{
         arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
     };
+    use insta::assert_yaml_snapshot;
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
     const TABLE_5700XT: &str = include_str!(concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/tests/data/rx5700xt/pp_od_clk_voltage"
+    ));
+    const TABLE_6900XT: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/rx6900xt/pp_od_clk_voltage"
     ));
 
     #[test]
@@ -387,5 +395,11 @@ mod tests {
             arr_commands(["m 0 500", "m 1 1000", "vc 0 300 600", "vc 1 1000 1000"]);
 
         assert_eq!(expected_commands, commands);
+    }
+
+    #[test]
+    fn parse_6900xt_full() {
+        let table = Table::from_str(TABLE_6900XT).unwrap();
+        assert_yaml_snapshot!(table);
     }
 }

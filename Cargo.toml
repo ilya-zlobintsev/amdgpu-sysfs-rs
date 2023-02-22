@@ -1,6 +1,6 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.9.2"
+version = "0.9.3"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2018"
 license = "GPL-3.0"
@@ -19,3 +19,5 @@ serde = { version = "1", features = ["derive"], optional = true }
 pretty_assertions = "1.2.1"
 rust-embed = "6.4.2"
 tempfile = "3.3"
+amdgpu-sysfs = { path = ".", features = ["serde"] }
+insta = { version = "1.28.0", features = ["yaml"] }
