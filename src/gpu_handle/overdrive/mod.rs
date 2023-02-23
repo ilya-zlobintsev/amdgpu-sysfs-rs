@@ -23,6 +23,17 @@ pub trait ClocksTable: FromStr {
     /// Writes commands needed to apply the state that is in the table struct on the GPU.
     fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()>;
 
+    /// Gets the list of commands that will apply the current state of the clocks table.
+    /// `write_commands` should generally be preferred instead.
+    fn get_commands(&self) -> Result<Vec<String>> {
+        let mut buf = Vec::new();
+        self.write_commands(&mut buf)?;
+        let raw_commands = String::from_utf8(buf).map_err(|_| {
+            ErrorKind::Unsupported("Generated clocks table commands are not valid UTF-8".into())
+        })?;
+        Ok(raw_commands.lines().map(str::to_owned).collect())
+    }
+
     /// Gets the core clock range usable at the highest power level.
     fn get_max_sclk_range(&self) -> Option<Range>;
 

@@ -18,6 +18,9 @@ pub struct Table {
     pub current_mclk_range: Range,
     /// The current voltage curve. May be empty if the GPU does not support it.
     pub vddc_curve: Vec<ClocksLevel>,
+    /// Voltage offset(in mV) applied on target voltage calculation.
+    /// This is available for Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
+    pub voltage_offset: Option<u32>,
     /// The allowed ranges for clockspeeds and voltages.
     pub od_range: OdRange,
 }
@@ -39,6 +42,10 @@ impl ClocksTable for Table {
 
         for (i, level) in self.vddc_curve.iter().enumerate() {
             write_vddc_curve_line(writer, i, level.clockspeed, level.voltage)?;
+        }
+
+        if let Some(offset) = self.voltage_offset {
+            write_voltage_offset_line(writer, offset)?;
         }
 
         Ok(())
@@ -110,6 +117,8 @@ impl FromStr for Table {
         let mut sclk_range_points = Vec::with_capacity(3);
         let mut volt_range_points = Vec::with_capacity(3);
 
+        let mut voltage_offset = None;
+
         let mut i = 1;
         for line in s.lines().map(str::trim).filter(|line| !line.is_empty()) {
             match line {
@@ -145,7 +154,10 @@ impl FromStr for Table {
                     Some(Section::Sclk) => parse_min_max_line(line, i, &mut current_sclk_range)?,
                     Some(Section::Mclk) => parse_min_max_line(line, i, &mut current_mclk_range)?,
                     Some(Section::VddcCurve) => push_level_line(line, &mut vddc_curve, i)?,
-                    Some(Section::VddGfxOffset) => (),
+                    Some(Section::VddGfxOffset) => {
+                        let offset = parse_voltage_offset_line(line, i)?;
+                        voltage_offset = Some(offset);
+                    }
                     None => {
                         return Err(ParseError {
                             msg: "Unexpected line without section".to_owned(),
@@ -189,6 +201,7 @@ impl FromStr for Table {
             current_mclk_range,
             vddc_curve,
             od_range,
+            voltage_offset,
         })
     }
 }
@@ -254,6 +267,17 @@ fn parse_min_max_line(line: &str, i: usize, range: &mut Option<Range>) -> Result
     }
 }
 
+fn parse_voltage_offset_line(line: &str, i: usize) -> Result<u32> {
+    match line.to_lowercase().strip_suffix("mv") {
+        Some(raw_value) => Ok(raw_value.parse()?),
+        None => Err(ParseError {
+            msg: format!("Could not find expected `mV` suffix in offset line {line}"),
+            line: i,
+        }
+        .into()),
+    }
+}
+
 fn write_clockspeed_line<W: Write>(
     writer: &mut W,
     symbol: char,
@@ -274,13 +298,18 @@ fn write_vddc_curve_line<W: Write>(
     Ok(())
 }
 
+fn write_voltage_offset_line<W: Write>(writer: &mut W, offset: u32) -> Result<()> {
+    writeln!(writer, "vo {offset}")?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::{OdRange, Table};
     use crate::gpu_handle::overdrive::{
         arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
     };
-    use insta::assert_yaml_snapshot;
+    use insta::{assert_debug_snapshot, assert_display_snapshot, assert_yaml_snapshot};
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
@@ -380,6 +409,7 @@ mod tests {
             current_sclk_range: Range::empty(),
             current_mclk_range: Range::full(500, 1000),
             vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
+            voltage_offset: None,
             od_range: OdRange {
                 sclk: Range::empty(),
                 mclk: None,
@@ -401,5 +431,13 @@ mod tests {
     fn parse_6900xt_full() {
         let table = Table::from_str(TABLE_6900XT).unwrap();
         assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn write_commands_6900xt_default() {
+        let table = Table::from_str(TABLE_6900XT).unwrap();
+        let commands = table.get_commands().unwrap();
+
+        assert_yaml_snapshot!(commands);
     }
 }
