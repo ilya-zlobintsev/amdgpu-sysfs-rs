@@ -309,7 +309,7 @@ mod tests {
     use crate::gpu_handle::overdrive::{
         arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
     };
-    use insta::{assert_debug_snapshot, assert_display_snapshot, assert_yaml_snapshot};
+    use insta::assert_yaml_snapshot;
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
