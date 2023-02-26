@@ -36,23 +36,30 @@ impl ClocksTable for Table {
 
         for (maybe_clockspeed, symbol, index) in clockspeeds {
             if let Some(clockspeed) = maybe_clockspeed {
-                write_clockspeed_line(writer, symbol, index, clockspeed)?;
+                let line = clockspeed_line(symbol, index, clockspeed);
+                writer.write_all(line.as_bytes())?;
             }
         }
 
         for (i, level) in self.vddc_curve.iter().enumerate() {
-            write_vddc_curve_line(writer, i, level.clockspeed, level.voltage)?;
+            let line = vddc_curve_line(i, level.clockspeed, level.voltage);
+            writer.write_all(line.as_bytes())?;
         }
 
         if let Some(offset) = self.voltage_offset {
-            write_voltage_offset_line(writer, offset)?;
+            let line = voltage_offset_line(offset);
+            writer.write_all(line.as_bytes())?;
         }
 
         Ok(())
     }
 
     fn get_max_sclk_range(&self) -> Option<Range> {
-        self.od_range.voltage_points.last().map(|point| point.sclk)
+        self.od_range
+            .voltage_points
+            .last()
+            .map(|point| point.sclk)
+            .or(Some(self.od_range.sclk))
     }
 
     fn get_max_mclk_range(&self) -> Option<Range> {
@@ -282,29 +289,16 @@ fn parse_voltage_offset_line(line: &str, i: usize) -> Result<u32> {
     }
 }
 
-fn write_clockspeed_line<W: Write>(
-    writer: &mut W,
-    symbol: char,
-    index: usize,
-    clockspeed: u32,
-) -> Result<()> {
-    writeln!(writer, "{symbol} {index} {clockspeed}")?;
-    Ok(())
+fn clockspeed_line(symbol: char, index: usize, clockspeed: u32) -> String {
+    format!("{symbol} {index} {clockspeed}\n")
 }
 
-fn write_vddc_curve_line<W: Write>(
-    writer: &mut W,
-    index: usize,
-    clockspeed: u32,
-    voltage: u32,
-) -> Result<()> {
-    writeln!(writer, "vc {index} {clockspeed} {voltage}")?;
-    Ok(())
+fn vddc_curve_line(index: usize, clockspeed: u32, voltage: u32) -> String {
+    format!("vc {index} {clockspeed} {voltage}\n")
 }
 
-fn write_voltage_offset_line<W: Write>(writer: &mut W, offset: u32) -> Result<()> {
-    writeln!(writer, "vo {offset}")?;
-    Ok(())
+fn voltage_offset_line(offset: u32) -> String {
+    format!("vo {offset}\n")
 }
 
 #[cfg(test)]
@@ -453,5 +447,22 @@ mod tests {
     fn parse_6700xt_full() {
         let table = Table::from_str(TABLE_6700XT).unwrap();
         assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn generic_actions_6700xt() {
+        let table = Table::from_str(TABLE_6700XT).unwrap();
+
+        let max_sclk = table.get_max_sclk().unwrap();
+        assert_eq!(max_sclk, 2725);
+        let sclk_range = table.get_max_sclk_range().unwrap();
+        assert_eq!(sclk_range, Range::full(500, 2800));
+
+        let max_mclk = table.get_max_mclk().unwrap();
+        assert_eq!(max_mclk, 1000);
+        let mclk_range = table.get_max_mclk_range().unwrap();
+        assert_eq!(mclk_range, Range::full(674, 1075));
+
+        assert!(table.get_max_sclk_voltage().is_none());
     }
 }
