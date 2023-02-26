@@ -217,6 +217,20 @@ impl FromStr for Table {
     }
 }
 
+impl Table {
+    /// Clears the table of all "applicable" values.
+    ///
+    /// This removes all values except the allowed range.
+    /// You can use it to avoid overwriting the table with already present values, as it can be problematic on some cards.
+    /// It is intended to be used before calling `set_*` functions and generating commands/writing the table.
+    pub fn clear(&mut self) {
+        self.current_sclk_range = Range::empty();
+        self.current_mclk_range = Range::empty();
+        self.vddc_curve.clear();
+        self.voltage_offset = None;
+    }
+}
+
 /// The ranges for overclocking values which the GPU allows to be used.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -458,5 +472,17 @@ mod tests {
         assert_eq!(mclk_range, Range::full(674, 1075));
 
         assert!(table.get_max_sclk_voltage().is_none());
+    }
+
+    #[test]
+    fn write_only_max_values_67900xt() {
+        let mut table = Table::from_str(TABLE_6700XT).unwrap();
+
+        table.clear();
+        table.set_max_sclk(2800).unwrap();
+        table.set_max_mclk(1075).unwrap();
+
+        let commands = table.get_commands().unwrap();
+        assert_yaml_snapshot!(commands);
     }
 }
