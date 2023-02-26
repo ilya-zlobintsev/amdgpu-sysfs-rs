@@ -120,7 +120,11 @@ impl FromStr for Table {
         let mut voltage_offset = None;
 
         let mut i = 1;
-        for line in s.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        for line in s
+            .lines()
+            .map(|line| line.trim_matches(char::from(0)).trim())
+            .filter(|line| !line.is_empty())
+        {
             match line {
                 "OD_SCLK:" => current_section = Some(Section::Sclk),
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
@@ -321,6 +325,10 @@ mod tests {
         env!("CARGO_MANIFEST_DIR"),
         "/tests/data/rx6900xt/pp_od_clk_voltage"
     ));
+    const TABLE_6700XT: &str = include_str!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/data/rx6700xt/pp_od_clk_voltage"
+    ));
 
     #[test]
     fn parse_5700xt_full() {
@@ -439,5 +447,11 @@ mod tests {
         let commands = table.get_commands().unwrap();
 
         assert_yaml_snapshot!(commands);
+    }
+
+    #[test]
+    fn parse_6700xt_full() {
+        let table = Table::from_str(TABLE_6700XT).unwrap();
+        assert_yaml_snapshot!(table);
     }
 }
