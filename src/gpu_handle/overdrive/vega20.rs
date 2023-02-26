@@ -304,25 +304,19 @@ fn voltage_offset_line(offset: u32) -> String {
 #[cfg(test)]
 mod tests {
     use super::{OdRange, Table};
-    use crate::gpu_handle::overdrive::{
-        arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
+    use crate::{
+        gpu_handle::overdrive::{
+            arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
+        },
+        include_table,
     };
     use insta::assert_yaml_snapshot;
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
-    const TABLE_5700XT: &str = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/data/rx5700xt/pp_od_clk_voltage"
-    ));
-    const TABLE_6900XT: &str = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/data/rx6900xt/pp_od_clk_voltage"
-    ));
-    const TABLE_6700XT: &str = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/data/rx6700xt/pp_od_clk_voltage"
-    ));
+    const TABLE_5700XT: &str = include_table!("rx5700xt");
+    const TABLE_6900XT: &str = include_table!("rx6900xt");
+    const TABLE_6700XT: &str = include_table!("rx6700xt");
 
     #[test]
     fn parse_5700xt_full() {

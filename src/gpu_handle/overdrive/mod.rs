@@ -286,6 +286,16 @@ fn arr_commands<const N: usize>(commands: [&str; N]) -> String {
 mod tests {
     use super::{check_clockspeed_in_range, parse_level_line, parse_range_line, Range};
 
+    #[macro_export]
+    macro_rules! include_table {
+        ($name:literal) => {
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                concat!("/tests/data/", $name, "/pp_od_clk_voltage")
+            ))
+        };
+    }
+
     #[test]
     fn parse_range_line_sclk() {
         let line = "SCLK:     300MHz       2000MHz";

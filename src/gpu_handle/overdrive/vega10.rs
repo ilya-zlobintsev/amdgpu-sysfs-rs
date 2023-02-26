@@ -193,14 +193,14 @@ enum Section {
 #[cfg(test)]
 mod tests {
     use super::{ClocksLevel, Table};
-    use crate::gpu_handle::overdrive::{arr_commands, vega10::OdRange, ClocksTable, Range};
+    use crate::{
+        gpu_handle::overdrive::{arr_commands, vega10::OdRange, ClocksTable, Range},
+        include_table,
+    };
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
-    const TABLE_RX580: &str = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/tests/data/rx580/pp_od_clk_voltage"
-    ));
+    const TABLE_RX580: &str = include_table!("rx580");
 
     #[test]
     fn parse_full_table() {
