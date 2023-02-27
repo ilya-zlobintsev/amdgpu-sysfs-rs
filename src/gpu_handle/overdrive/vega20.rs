@@ -20,7 +20,7 @@ pub struct Table {
     pub vddc_curve: Vec<ClocksLevel>,
     /// Voltage offset(in mV) applied on target voltage calculation.
     /// This is available for Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
-    pub voltage_offset: Option<u32>,
+    pub voltage_offset: Option<i32>,
     /// The allowed ranges for clockspeeds and voltages.
     pub od_range: OdRange,
 }
@@ -292,7 +292,7 @@ fn parse_min_max_line(line: &str, i: usize, range: &mut Option<Range>) -> Result
     }
 }
 
-fn parse_voltage_offset_line(line: &str, i: usize) -> Result<u32> {
+fn parse_voltage_offset_line(line: &str, i: usize) -> Result<i32> {
     match line.to_lowercase().strip_suffix("mv") {
         Some(raw_value) => Ok(raw_value.parse()?),
         None => Err(ParseError {
@@ -311,7 +311,7 @@ fn vddc_curve_line(index: usize, clockspeed: u32, voltage: u32) -> String {
     format!("vc {index} {clockspeed} {voltage}\n")
 }
 
-fn voltage_offset_line(offset: u32) -> String {
+fn voltage_offset_line(offset: i32) -> String {
     format!("vo {offset}\n")
 }
 
