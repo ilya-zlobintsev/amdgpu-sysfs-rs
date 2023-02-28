@@ -8,28 +8,27 @@ use std::collections::HashMap;
 
 /// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerProfileModesTable<'a> {
+pub struct PowerProfileModesTable {
     /// List of available modes
-    #[cfg_attr(feature = "serde", serde(borrow))]
-    pub modes: Vec<PowerProfileMode<'a>>,
+    pub modes: Vec<PowerProfileMode>,
     /// Index of the currently active mode
     pub active: usize,
     /// List of available heuristics in the original order
-    pub available_heuristics: Vec<&'a str>,
+    pub available_heuristics: Vec<String>,
 }
 
 /// A speficic power mode
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerProfileMode<'a> {
+pub struct PowerProfileMode {
     /// Name of the mode
-    pub name: &'a str,
+    pub name: String,
     /// Heuristics defined for this mode
-    pub heuristics: HashMap<&'a str, Option<&'a str>>,
+    pub heuristics: HashMap<String, Option<String>>,
 }
 
-impl<'a> PowerProfileModesTable<'a> {
+impl PowerProfileModesTable {
     /// Parse the table from a given string
-    pub fn parse(s: &'a str) -> Result<Self> {
+    pub fn parse(s: &str) -> Result<Self> {
         let mut lines = s.lines().map(trim_sysfs_line).enumerate();
         let (_, header) = lines
             .next()
@@ -56,7 +55,8 @@ impl<'a> PowerProfileModesTable<'a> {
                 .next()
                 .ok_or_else(|| Error::unexpected_eol("mode name", line))?
                 .trim_matches(':')
-                .trim_matches('*');
+                .trim_matches('*')
+                .to_owned();
 
             let mut heuristics = HashMap::with_capacity(available_heuristics.len());
 
@@ -67,10 +67,14 @@ impl<'a> PowerProfileModesTable<'a> {
                     continue;
                 }
 
-                let heurisitc_name = available_heuristics[i];
-                let value = if value == "-" { None } else { Some(value) };
+                let heurisitc_name = &available_heuristics[i];
+                let value = if value == "-" {
+                    None
+                } else {
+                    Some(value.to_owned())
+                };
 
-                heuristics.insert(heurisitc_name, value);
+                heuristics.insert(heurisitc_name.clone(), value);
 
                 i += 1;
             }
@@ -87,7 +91,7 @@ impl<'a> PowerProfileModesTable<'a> {
     }
 }
 
-fn parse_header(header: &str) -> Result<Vec<&str>> {
+fn parse_header(header: &str) -> Result<Vec<String>> {
     let mut parts = header.split_whitespace();
 
     let num_part = parts
@@ -108,7 +112,7 @@ fn parse_header(header: &str) -> Result<Vec<&str>> {
         )));
     }
 
-    Ok(parts.collect())
+    Ok(parts.map(str::to_owned).collect())
 }
 
 #[cfg(test)]

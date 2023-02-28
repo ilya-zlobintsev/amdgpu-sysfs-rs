@@ -268,6 +268,19 @@ impl GpuHandle {
 
         Ok(())
     }
+
+    /// Reads the list of predefined power profiles and the relevant heuristics settings for them from `pp_power_profile_mode`
+    ///
+    /// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
+    pub fn get_power_profile_modes(&self) -> Result<PowerProfileModesTable> {
+        let contents = self.read_file("pp_power_profile_mode")?;
+        PowerProfileModesTable::parse(&contents)
+    }
+
+    /// Sets the current power profile mode. You can get the available modes with [`get_power_profile_modes`]
+    pub fn set_active_power_profile_mode(&self, i: usize) -> Result<()> {
+        self.write_file("pp_power_profile_mode", format!("{i}\n"))
+    }
 }
 
 impl SysFS for GpuHandle {
