@@ -289,10 +289,7 @@ mod tests {
     #[macro_export]
     macro_rules! include_table {
         ($name:literal) => {
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                concat!("/tests/data/", $name, "/pp_od_clk_voltage")
-            ))
+            include_test_data!(concat!($name, "/pp_od_clk_voltage"))
         };
     }
 

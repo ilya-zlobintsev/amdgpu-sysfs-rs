@@ -3,6 +3,7 @@
 pub mod overdrive;
 #[macro_use]
 mod power_levels;
+mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
@@ -328,4 +329,9 @@ impl fmt::Display for PerformanceLevel {
             }
         )
     }
+}
+
+/// For some reason files sometimes have random null bytes around lines
+fn trim_sysfs_line(line: &str) -> &str {
+    line.trim_matches(char::from(0)).trim()
 }

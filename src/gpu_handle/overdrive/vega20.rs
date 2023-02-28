@@ -2,6 +2,7 @@
 use super::{parse_line_item, parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
 use crate::{
     error::{Error, ErrorKind::ParseError},
+    gpu_handle::trim_sysfs_line,
     Result,
 };
 #[cfg(feature = "serde")]
@@ -129,7 +130,7 @@ impl FromStr for Table {
         let mut i = 1;
         for line in s
             .lines()
-            .map(|line| line.trim_matches(char::from(0)).trim())
+            .map(trim_sysfs_line)
             .filter(|line| !line.is_empty())
         {
             match line {

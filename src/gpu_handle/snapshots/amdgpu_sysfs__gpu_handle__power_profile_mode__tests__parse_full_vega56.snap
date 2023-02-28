@@ -1,0 +1,49 @@
+---
+source: src/gpu_handle/power_profile_mode.rs
+expression: table
+---
+modes:
+  - name: BOOTUP_DEFAULT
+    heuristics:
+      FPS: "60"
+      USE_RLC_BUSY: "0"
+      BUSY_SET_POINT: "70"
+      MIN_ACTIVE_LEVEL: "0"
+  - name: 3D_FULL_SCREEN
+    heuristics:
+      BUSY_SET_POINT: "70"
+      FPS: "60"
+      MIN_ACTIVE_LEVEL: "3"
+      USE_RLC_BUSY: "1"
+  - name: POWER_SAVING
+    heuristics:
+      BUSY_SET_POINT: "90"
+      FPS: "60"
+      USE_RLC_BUSY: "0"
+      MIN_ACTIVE_LEVEL: "0"
+  - name: VIDEO
+    heuristics:
+      MIN_ACTIVE_LEVEL: "0"
+      USE_RLC_BUSY: "0"
+      BUSY_SET_POINT: "70"
+      FPS: "60"
+  - name: VR
+    heuristics:
+      FPS: "90"
+      USE_RLC_BUSY: "0"
+      MIN_ACTIVE_LEVEL: "0"
+      BUSY_SET_POINT: "70"
+  - name: COMPUTE
+    heuristics:
+      BUSY_SET_POINT: "30"
+      USE_RLC_BUSY: "0"
+      FPS: "60"
+      MIN_ACTIVE_LEVEL: "6"
+  - name: CUSTOM
+    heuristics:
+      BUSY_SET_POINT: "0"
+      USE_RLC_BUSY: "0"
+      MIN_ACTIVE_LEVEL: "0"
+      FPS: "0"
+active: 0
+
