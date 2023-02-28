@@ -6,9 +6,10 @@ use std::collections::HashMap;
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerProfileModesTable<'a> {
-    #[serde(borrow)]
+    #[cfg_attr(feature = "serde", serde(borrow))]
     pub modes: Vec<Mode<'a>>,
     pub active: usize,
+    pub available_heuristics: Vec<&'a str>,
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -24,7 +25,7 @@ impl<'a> PowerProfileModesTable<'a> {
             .next()
             .ok_or_else(|| Error::basic_parse_error("Could not read header"))?;
 
-        let heuristic_definitions = parse_header(header)?;
+        let available_heuristics = parse_header(header)?;
         let mut modes = Vec::new();
         let mut active = None;
 
@@ -35,24 +36,33 @@ impl<'a> PowerProfileModesTable<'a> {
                 .next()
                 .ok_or_else(|| Error::unexpected_eol("num", line))?;
 
-            let mut name = parts
-                .next()
-                .ok_or_else(|| Error::unexpected_eol("mode name", line))?;
-
-            println!("parsing name {name}");
-
-            if let Some(active_name) = name.strip_suffix("*:") {
-                name = active_name;
+            // Depending on the specific GPU there may or may not be a space before the active specifier,
+            // so this is the most reliable way to check it
+            if row.contains("*:") {
                 active = Some(num.parse()?);
-            } else {
-                parts.next(); // Skip `:` after mode name
             }
 
-            let mut heuristics = HashMap::with_capacity(heuristic_definitions.len());
+            let name = parts
+                .next()
+                .ok_or_else(|| Error::unexpected_eol("mode name", line))?
+                .trim_matches(':')
+                .trim_matches('*');
 
-            for (column, value) in parts.enumerate() {
-                let heurisitc_name = heuristic_definitions[column];
+            let mut heuristics = HashMap::with_capacity(available_heuristics.len());
+
+            let mut i = 0;
+            for value in parts {
+                // Skip separator items and don't increase index for them
+                if matches!(value, "*" | ":*" | "*:" | ":") {
+                    continue;
+                }
+
+                println!("item num {i} is {value}");
+
+                let heurisitc_name = available_heuristics[i];
                 heuristics.insert(heurisitc_name, value);
+
+                i += 1;
             }
 
             modes.push(Mode { name, heuristics });
@@ -62,6 +72,7 @@ impl<'a> PowerProfileModesTable<'a> {
             modes,
             active: active
                 .ok_or_else(|| Error::basic_parse_error("could not find active state"))?,
+            available_heuristics,
         })
     }
 }
@@ -97,6 +108,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     const TABLE_VEGA56: &str = include_test_data!("vega56/pp_power_profile_mode");
+    const TABLE_RX580: &str = include_test_data!("rx580/pp_power_profile_mode");
 
     #[test]
     fn parse_header_vega56() {
@@ -128,6 +140,16 @@ mod tests {
     #[test]
     fn parse_full_vega56() {
         let table = PowerProfileModesTable::parse(TABLE_VEGA56).unwrap();
-        assert_yaml_snapshot!(table);
+        assert_yaml_snapshot!(table, {
+            ".modes[].heuristics" => insta::sorted_redaction()
+        });
+    }
+
+    #[test]
+    fn parse_full_rx580() {
+        let table = PowerProfileModesTable::parse(TABLE_RX580).unwrap();
+        assert_yaml_snapshot!(table, {
+            ".modes[].heuristics" => insta::sorted_redaction()
+        });
     }
 }

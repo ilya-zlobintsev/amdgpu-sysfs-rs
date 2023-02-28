@@ -20,4 +20,4 @@ pretty_assertions = "1.2.1"
 rust-embed = "6.4.2"
 tempfile = "3.3"
 amdgpu-sysfs = { path = ".", features = ["serde"] }
-insta = { version = "1.28.0", features = ["yaml"] }
+insta = { version = "1.28.0", features = ["yaml", "redactions"] }
