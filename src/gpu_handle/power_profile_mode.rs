@@ -4,21 +4,31 @@ use crate::{error::Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Table of predefined power profile modes with a list of GPU-specific heuristics
+
+/// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerProfileModesTable<'a> {
+    /// List of available modes
     #[cfg_attr(feature = "serde", serde(borrow))]
-    pub modes: Vec<Mode<'a>>,
+    pub modes: Vec<PowerProfileMode<'a>>,
+    /// Index of the currently active mode
     pub active: usize,
+    /// List of available heuristics in the original order
     pub available_heuristics: Vec<&'a str>,
 }
 
+/// A speficic power mode
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Mode<'a> {
+pub struct PowerProfileMode<'a> {
+    /// Name of the mode
     pub name: &'a str,
-    pub heuristics: HashMap<&'a str, &'a str>,
+    /// Heuristics defined for this mode
+    pub heuristics: HashMap<&'a str, Option<&'a str>>,
 }
 
 impl<'a> PowerProfileModesTable<'a> {
+    /// Parse the table from a given string
     pub fn parse(s: &'a str) -> Result<Self> {
         let mut lines = s.lines().map(trim_sysfs_line).enumerate();
         let (_, header) = lines
@@ -57,15 +67,15 @@ impl<'a> PowerProfileModesTable<'a> {
                     continue;
                 }
 
-                println!("item num {i} is {value}");
-
                 let heurisitc_name = available_heuristics[i];
+                let value = if value == "-" { None } else { Some(value) };
+
                 heuristics.insert(heurisitc_name, value);
 
                 i += 1;
             }
 
-            modes.push(Mode { name, heuristics });
+            modes.push(PowerProfileMode { name, heuristics });
         }
 
         Ok(Self {

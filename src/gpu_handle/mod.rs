@@ -6,6 +6,7 @@ mod power_levels;
 mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
+pub use power_profile_mode::{PowerProfileMode, PowerProfileModesTable};
 
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
