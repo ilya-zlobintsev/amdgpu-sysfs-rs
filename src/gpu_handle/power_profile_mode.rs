@@ -7,6 +7,7 @@ use std::collections::HashMap;
 /// Table of predefined power profile modes with a list of GPU-specific heuristics
 
 /// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
+#[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerProfileModesTable {
     /// List of available modes
@@ -18,6 +19,7 @@ pub struct PowerProfileModesTable {
 }
 
 /// A speficic power mode
+#[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerProfileMode {
     /// Name of the mode
