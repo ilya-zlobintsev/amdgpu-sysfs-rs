@@ -1,0 +1,72 @@
+---
+source: src/gpu_handle/power_profile_mode/mod.rs
+expression: table
+---
+kind: full
+data:
+  modes:
+    - name: BOOTUP_DEFAULT
+      heuristics:
+        MCLK_ACTIVE_LEVEL: ~
+        MCLK_DOWN_HYST: ~
+        MCLK_UP_HYST: ~
+        SCLK_ACTIVE_LEVEL: ~
+        SCLK_DOWN_HYST: ~
+        SCLK_UP_HYST: ~
+    - name: 3D_FULL_SCREEN
+      heuristics:
+        MCLK_ACTIVE_LEVEL: "25"
+        MCLK_DOWN_HYST: "60"
+        MCLK_UP_HYST: "10"
+        SCLK_ACTIVE_LEVEL: "30"
+        SCLK_DOWN_HYST: "100"
+        SCLK_UP_HYST: "0"
+    - name: POWER_SAVING
+      heuristics:
+        MCLK_ACTIVE_LEVEL: ~
+        MCLK_DOWN_HYST: ~
+        MCLK_UP_HYST: ~
+        SCLK_ACTIVE_LEVEL: "30"
+        SCLK_DOWN_HYST: "0"
+        SCLK_UP_HYST: "10"
+    - name: VIDEO
+      heuristics:
+        MCLK_ACTIVE_LEVEL: "31"
+        MCLK_DOWN_HYST: "16"
+        MCLK_UP_HYST: "10"
+        SCLK_ACTIVE_LEVEL: ~
+        SCLK_DOWN_HYST: ~
+        SCLK_UP_HYST: ~
+    - name: VR
+      heuristics:
+        MCLK_ACTIVE_LEVEL: "10"
+        MCLK_DOWN_HYST: "100"
+        MCLK_UP_HYST: "0"
+        SCLK_ACTIVE_LEVEL: "50"
+        SCLK_DOWN_HYST: "11"
+        SCLK_UP_HYST: "0"
+    - name: COMPUTE
+      heuristics:
+        MCLK_ACTIVE_LEVEL: ~
+        MCLK_DOWN_HYST: ~
+        MCLK_UP_HYST: ~
+        SCLK_ACTIVE_LEVEL: "30"
+        SCLK_DOWN_HYST: "5"
+        SCLK_UP_HYST: "0"
+    - name: CUSTOM
+      heuristics:
+        MCLK_ACTIVE_LEVEL: ~
+        MCLK_DOWN_HYST: ~
+        MCLK_UP_HYST: ~
+        SCLK_ACTIVE_LEVEL: ~
+        SCLK_DOWN_HYST: ~
+        SCLK_UP_HYST: ~
+  active: 1
+  available_heuristics:
+    - SCLK_UP_HYST
+    - SCLK_DOWN_HYST
+    - SCLK_ACTIVE_LEVEL
+    - MCLK_UP_HYST
+    - MCLK_DOWN_HYST
+    - MCLK_ACTIVE_LEVEL
+

@@ -1,17 +1,15 @@
-use super::trim_sysfs_line;
-use crate::{error::Error, Result};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Table of predefined power profile modes with a list of GPU-specific heuristics
+use crate::{error::Error, gpu_handle::trim_sysfs_line, Result};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-/// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
+/// The full table format used by dedicated GPUs
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerProfileModesTable {
+pub struct FullTable {
     /// List of available modes
-    pub modes: Vec<PowerProfileMode>,
+    pub modes: Vec<FullTableMode>,
     /// Index of the currently active mode
     pub active: usize,
     /// List of available heuristics in the original order
@@ -21,16 +19,15 @@ pub struct PowerProfileModesTable {
 /// A speficic power mode
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerProfileMode {
+pub struct FullTableMode {
     /// Name of the mode
     pub name: String,
     /// Heuristics defined for this mode
     pub heuristics: HashMap<String, Option<String>>,
 }
 
-impl PowerProfileModesTable {
-    /// Parse the table from a given string
-    pub fn parse(s: &str) -> Result<Self> {
+impl FullTable {
+    pub(crate) fn parse(s: &str) -> Result<Self> {
         let mut lines = s.lines().map(trim_sysfs_line).enumerate();
         let (_, header) = lines
             .next()
@@ -81,7 +78,7 @@ impl PowerProfileModesTable {
                 i += 1;
             }
 
-            modes.push(PowerProfileMode { name, heuristics });
+            modes.push(FullTableMode { name, heuristics });
         }
 
         Ok(Self {
@@ -119,12 +116,8 @@ fn parse_header(header: &str) -> Result<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_header, PowerProfileModesTable};
-    use insta::assert_yaml_snapshot;
+    use super::parse_header;
     use pretty_assertions::assert_eq;
-
-    const TABLE_VEGA56: &str = include_test_data!("vega56/pp_power_profile_mode");
-    const TABLE_RX580: &str = include_test_data!("rx580/pp_power_profile_mode");
 
     #[test]
     fn parse_header_vega56() {
@@ -151,21 +144,5 @@ mod tests {
                 "MCLK_ACTIVE_LEVEL"
             ]
         );
-    }
-
-    #[test]
-    fn parse_full_vega56() {
-        let table = PowerProfileModesTable::parse(TABLE_VEGA56).unwrap();
-        assert_yaml_snapshot!(table, {
-            ".modes[].heuristics" => insta::sorted_redaction()
-        });
-    }
-
-    #[test]
-    fn parse_full_rx580() {
-        let table = PowerProfileModesTable::parse(TABLE_RX580).unwrap();
-        assert_yaml_snapshot!(table, {
-            ".modes[].heuristics" => insta::sorted_redaction()
-        });
     }
 }

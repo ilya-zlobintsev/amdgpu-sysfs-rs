@@ -1,0 +1,14 @@
+---
+source: src/gpu_handle/power_profile_mode/mod.rs
+expression: table
+---
+kind: basic
+data:
+  modes:
+    1: 3D_FULL_SCREEN
+    3: VIDEO
+    4: VR
+    5: COMPUTE
+    6: CUSTOM
+  active: 3
+

@@ -3,10 +3,9 @@
 pub mod overdrive;
 #[macro_use]
 mod power_levels;
-mod power_profile_mode;
+pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
-pub use power_profile_mode::{PowerProfileMode, PowerProfileModesTable};
 
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
@@ -14,6 +13,7 @@ use crate::{
     sysfs::SysFS,
     Result,
 };
+use power_profile_mode::PowerProfileModesTable;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{
