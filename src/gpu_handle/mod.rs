@@ -279,7 +279,7 @@ impl GpuHandle {
 
     /// Sets the current power profile mode. You can get the available modes with [`get_power_profile_modes`].
     /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
-    pub fn set_active_power_profile_mode(&self, i: usize) -> Result<()> {
+    pub fn set_active_power_profile_mode(&self, i: u16) -> Result<()> {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
     }
 }
