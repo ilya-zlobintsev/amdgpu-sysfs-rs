@@ -45,8 +45,12 @@ impl Error {
         .into()
     }
 
-    pub(crate) fn basic_parse_error(msg: String) -> Self {
-        ErrorKind::ParseError { msg, line: 1 }.into()
+    pub(crate) fn basic_parse_error(msg: impl Into<String>) -> Self {
+        ErrorKind::ParseError {
+            msg: msg.into(),
+            line: 1,
+        }
+        .into()
     }
 
     pub(crate) fn not_allowed(msg: String) -> Self {

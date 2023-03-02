@@ -3,6 +3,7 @@
 pub mod overdrive;
 #[macro_use]
 mod power_levels;
+pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
@@ -12,6 +13,7 @@ use crate::{
     sysfs::SysFS,
     Result,
 };
+use power_profile_mode::PowerProfileModesTable;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 use std::{
@@ -266,6 +268,20 @@ impl GpuHandle {
 
         Ok(())
     }
+
+    /// Reads the list of predefined power profiles and the relevant heuristics settings for them from `pp_power_profile_mode`
+    ///
+    /// https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-power-profile-mode
+    pub fn get_power_profile_modes(&self) -> Result<PowerProfileModesTable> {
+        let contents = self.read_file("pp_power_profile_mode")?;
+        PowerProfileModesTable::parse(&contents)
+    }
+
+    /// Sets the current power profile mode. You can get the available modes with [`get_power_profile_modes`].
+    /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
+    pub fn set_active_power_profile_mode(&self, i: u16) -> Result<()> {
+        self.write_file("pp_power_profile_mode", format!("{i}\n"))
+    }
 }
 
 impl SysFS for GpuHandle {
@@ -328,4 +344,9 @@ impl fmt::Display for PerformanceLevel {
             }
         )
     }
+}
+
+/// For some reason files sometimes have random null bytes around lines
+fn trim_sysfs_line(line: &str) -> &str {
+    line.trim_matches(char::from(0)).trim()
 }

@@ -2,6 +2,7 @@
 use super::{parse_line_item, parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
 use crate::{
     error::{Error, ErrorKind::ParseError},
+    gpu_handle::trim_sysfs_line,
     Result,
 };
 #[cfg(feature = "serde")]
@@ -129,7 +130,7 @@ impl FromStr for Table {
         let mut i = 1;
         for line in s
             .lines()
-            .map(|line| line.trim_matches(char::from(0)).trim())
+            .map(trim_sysfs_line)
             .filter(|line| !line.is_empty())
         {
             match line {
@@ -331,6 +332,7 @@ mod tests {
     const TABLE_5700XT: &str = include_table!("rx5700xt");
     const TABLE_6900XT: &str = include_table!("rx6900xt");
     const TABLE_6700XT: &str = include_table!("rx6700xt");
+    const TABLE_6800: &str = include_table!("rx6800");
 
     #[test]
     fn parse_5700xt_full() {
@@ -475,7 +477,7 @@ mod tests {
     }
 
     #[test]
-    fn write_only_max_values_67900xt() {
+    fn write_only_max_values_6700xt() {
         let mut table = Table::from_str(TABLE_6700XT).unwrap();
 
         table.clear();
@@ -484,5 +486,24 @@ mod tests {
 
         let commands = table.get_commands().unwrap();
         assert_yaml_snapshot!(commands);
+    }
+
+    #[test]
+    fn parse_6800_full() {
+        let table = Table::from_str(TABLE_6800).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn set_max_values_6800() {
+        let mut table = Table::from_str(TABLE_6800).unwrap();
+
+        table.clear();
+        table.set_max_sclk(2400).unwrap();
+        assert!(table.set_max_sclk(2700).is_err());
+        table.set_max_mclk(1050).unwrap();
+        table.voltage_offset = Some(10);
+
+        assert_yaml_snapshot!(table.get_commands().unwrap());
     }
 }
