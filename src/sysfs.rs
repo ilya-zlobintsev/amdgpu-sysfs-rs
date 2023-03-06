@@ -14,6 +14,7 @@ pub trait SysFS {
     fn read_file(&self, file: &str) -> Result<String> {
         Ok(fs::read_to_string(self.get_path().join(file))
             .with_context(|| format!("Could not read file {file}"))?
+            .replace(char::from(0), "") // Workaround for random null bytes in SysFS entries
             .trim()
             .to_owned())
     }

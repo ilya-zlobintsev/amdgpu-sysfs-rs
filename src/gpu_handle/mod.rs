@@ -54,11 +54,11 @@ impl GpuHandle {
             }
         }
 
-        let uevent_raw = fs::read_to_string(sysfs_path.join("uevent"))?;
+        let uevent_raw = fs::read_to_string(sysfs_path.join("uevent"))?.replace(char::from(0), "");
 
         let mut uevent = HashMap::new();
 
-        for (i, line) in uevent_raw.trim().split('\n').enumerate() {
+        for (i, line) in uevent_raw.trim().lines().enumerate() {
             let (key, value) = line
                 .split_once('=')
                 .ok_or_else(|| Error::unexpected_eol("=", i))?;
