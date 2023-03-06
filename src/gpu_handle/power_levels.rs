@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 /// List of power levels.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerLevels<T> {
     /// List of possible levels.
