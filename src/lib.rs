@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![warn(missing_docs)]
+#![deny(unsafe_code)]
 
 #[cfg(test)]
 #[macro_use]
