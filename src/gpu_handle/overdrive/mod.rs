@@ -102,7 +102,7 @@ fn check_clockspeed_in_range(range: Option<Range>, clockspeed: u32) -> Result<()
 /// Representation of clocks and voltage table (`pp_od_clk_voltage`).
 ///
 /// NOTE: despite the names, the tables here are not exclusive to Vega10 and 20!
-/// Vega10 covers everything Vega10 and older (including Polaris), while Vega20 includes all newer gpus as well (like Vega)
+/// Vega10 covers everything Vega10 and older (including Polaris), while Vega20 includes all newer gpus as well (like Navi)
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
