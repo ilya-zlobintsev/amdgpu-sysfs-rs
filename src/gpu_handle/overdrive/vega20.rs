@@ -63,7 +63,19 @@ impl ClocksTable for Table {
             .or(Some(self.od_range.sclk))
     }
 
+    fn get_min_sclk_range(&self) -> Option<Range> {
+        self.od_range
+            .voltage_points
+            .first()
+            .map(|point| point.sclk)
+            .or(Some(self.od_range.sclk))
+    }
+
     fn get_max_mclk_range(&self) -> Option<Range> {
+        self.od_range.mclk
+    }
+
+    fn get_min_mclk_range(&self) -> Option<Range> {
         self.od_range.mclk
     }
 
@@ -74,8 +86,25 @@ impl ClocksTable for Table {
             .map(|point| point.voltage)
     }
 
-    fn get_max_sclk(&self) -> Option<u32> {
-        self.current_sclk_range.max
+    fn get_min_voltage_range(&self) -> Option<Range> {
+        self.od_range
+            .voltage_points
+            .first()
+            .map(|point| point.voltage)
+    }
+
+    fn get_current_voltage_range(&self) -> Option<Range> {
+        let min = self.vddc_curve.first().map(|level| level.voltage)?;
+        let max = self.vddc_curve.last().map(|level| level.voltage)?;
+        Some(Range::full(min, max))
+    }
+
+    fn get_current_sclk_range(&self) -> Range {
+        self.current_sclk_range
+    }
+
+    fn get_current_mclk_range(&self) -> Range {
+        self.current_mclk_range
     }
 
     fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
@@ -86,8 +115,12 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn get_max_mclk(&self) -> Option<u32> {
-        self.current_mclk_range.max
+    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+        self.current_sclk_range.min = Some(clockspeed);
+        if let Some(point) = self.vddc_curve.first_mut() {
+            point.clockspeed = clockspeed;
+        }
+        Ok(())
     }
 
     fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
@@ -95,9 +128,24 @@ impl ClocksTable for Table {
         Ok(())
     }
 
+    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+        self.current_mclk_range.min = Some(clockspeed);
+        Ok(())
+    }
+
     fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
         self.vddc_curve
             .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any voltage curve points".to_owned())
+            })?
+            .voltage = voltage;
+        Ok(())
+    }
+
+    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+        self.vddc_curve
+            .first_mut()
             .ok_or_else(|| {
                 Error::not_allowed("The GPU did not report any voltage curve points".to_owned())
             })?
@@ -396,6 +444,7 @@ mod tests {
         let mut table = Table::from_str(TABLE_5700XT).unwrap();
 
         table.set_max_sclk(2150).unwrap();
+        table.set_min_sclk(850).unwrap();
         table.set_max_mclk(950).unwrap();
         table.set_max_voltage(1200).unwrap();
 
@@ -404,10 +453,10 @@ mod tests {
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands = arr_commands([
-            "s 0 800",
+            "s 0 850",
             "s 1 2150",
             "m 1 950",
-            "vc 0 800 711",
+            "vc 0 850 711",
             "vc 1 1450 801",
             "vc 2 2150 1200",
         ]);
@@ -454,6 +503,20 @@ mod tests {
     }
 
     #[test]
+    fn write_commands_6900xt_custom() {
+        let mut table = Table::from_str(TABLE_6900XT).unwrap();
+        table.clear();
+
+        table.set_min_sclk(800).unwrap();
+        table.set_max_sclk(2400).unwrap();
+        table.set_max_mclk(900).unwrap();
+        assert!(table.set_min_voltage(1000).is_err());
+
+        let commands = table.get_commands().unwrap();
+        assert_yaml_snapshot!(commands);
+    }
+
+    #[test]
     fn parse_6700xt_full() {
         let table = Table::from_str(TABLE_6700XT).unwrap();
         assert_yaml_snapshot!(table);
@@ -474,6 +537,12 @@ mod tests {
         assert_eq!(mclk_range, Range::full(674, 1075));
 
         assert!(table.get_max_sclk_voltage().is_none());
+
+        let current_sclk_range = table.get_current_sclk_range();
+        assert_eq!(current_sclk_range, Range::full(500, 2725));
+
+        let current_mclk_range = table.get_current_mclk_range();
+        assert_eq!(current_mclk_range, Range::full(97, 1000));
     }
 
     #[test]

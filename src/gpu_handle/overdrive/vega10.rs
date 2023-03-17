@@ -39,7 +39,15 @@ impl ClocksTable for Table {
         Some(self.od_range.sclk)
     }
 
+    fn get_min_sclk_range(&self) -> Option<Range> {
+        Some(self.od_range.sclk)
+    }
+
     fn get_max_mclk_range(&self) -> Option<Range> {
+        self.od_range.mclk
+    }
+
+    fn get_min_mclk_range(&self) -> Option<Range> {
         self.od_range.mclk
     }
 
@@ -47,8 +55,26 @@ impl ClocksTable for Table {
         self.od_range.vddc
     }
 
-    fn get_max_sclk(&self) -> Option<u32> {
-        self.sclk_levels.last().map(|level| level.clockspeed)
+    fn get_min_voltage_range(&self) -> Option<Range> {
+        self.od_range.vddc
+    }
+
+    fn get_current_voltage_range(&self) -> Option<Range> {
+        let min = self.sclk_levels.first().map(|level| level.voltage);
+        let max = self.sclk_levels.last().map(|level| level.voltage);
+        Some(Range { min, max })
+    }
+
+    fn get_current_sclk_range(&self) -> Range {
+        let min = self.sclk_levels.first().map(|level| level.clockspeed);
+        let max = self.sclk_levels.last().map(|level| level.clockspeed);
+        Range { min, max }
+    }
+
+    fn get_current_mclk_range(&self) -> Range {
+        let min = self.mclk_levels.first().map(|level| level.clockspeed);
+        let max = self.mclk_levels.last().map(|level| level.clockspeed);
+        Range { min, max }
     }
 
     fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
@@ -58,17 +84,32 @@ impl ClocksTable for Table {
                 Error::not_allowed("The GPU did not report any power levels".to_owned())
             })?
             .clockspeed = clockspeed;
-
         Ok(())
     }
 
-    fn get_max_mclk(&self) -> Option<u32> {
-        self.mclk_levels.last().map(|level| level.clockspeed)
+    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+        self.sclk_levels
+            .first_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .clockspeed = clockspeed;
+        Ok(())
     }
 
     fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
         self.mclk_levels
             .last_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .clockspeed = clockspeed;
+        Ok(())
+    }
+
+    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+        self.mclk_levels
+            .first_mut()
             .ok_or_else(|| {
                 Error::not_allowed("The GPU did not report any power levels".to_owned())
             })?
@@ -83,6 +124,18 @@ impl ClocksTable for Table {
                 Error::not_allowed("The GPU did not report any power levels".to_owned())
             })?
             .voltage = voltage;
+
+        Ok(())
+    }
+
+    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+        self.sclk_levels
+            .first_mut()
+            .ok_or_else(|| {
+                Error::not_allowed("The GPU did not report any power levels".to_owned())
+            })?
+            .voltage = voltage;
+
         Ok(())
     }
 
@@ -242,6 +295,11 @@ mod tests {
 
         table.set_max_sclk(1500).unwrap();
         table.set_max_mclk(2250).unwrap();
+
+        table.set_min_sclk(350).unwrap();
+        table.set_min_mclk(360).unwrap();
+
+        table.set_min_voltage(800).unwrap();
         table.set_max_voltage(1200).unwrap();
 
         let mut buf = Vec::new();
@@ -249,7 +307,7 @@ mod tests {
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands = arr_commands([
-            "s 0 300 750",
+            "s 0 350 800",
             "s 1 600 769",
             "s 2 900 912",
             "s 3 1145 1125",
@@ -257,7 +315,7 @@ mod tests {
             "s 5 1257 1150",
             "s 6 1300 1150",
             "s 7 1500 1200",
-            "m 0 300 750",
+            "m 0 360 750",
             "m 1 1000 825",
             "m 2 2250 975",
         ]);

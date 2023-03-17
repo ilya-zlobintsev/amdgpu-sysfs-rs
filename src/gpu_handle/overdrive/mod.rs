@@ -37,14 +37,34 @@ pub trait ClocksTable: FromStr {
     /// Gets the core clock range usable at the highest power level.
     fn get_max_sclk_range(&self) -> Option<Range>;
 
+    /// Gets the core clock range usable at the lowest power level.
+    fn get_min_sclk_range(&self) -> Option<Range>;
+
     /// Gets the memory clock range usable at the highest power level.
     fn get_max_mclk_range(&self) -> Option<Range>;
+
+    /// Gets the memory clock range usable at the lowest power level.
+    fn get_min_mclk_range(&self) -> Option<Range>;
 
     /// Gets the voltage range usable at the highest power level.
     fn get_max_voltage_range(&self) -> Option<Range>;
 
+    /// Gets the voltage range usable at the lowest power level.
+    fn get_min_voltage_range(&self) -> Option<Range>;
+
+    /// Gets the current voltage range.
+    fn get_current_voltage_range(&self) -> Option<Range>;
+
     /// Gets the current maximum core clock.
-    fn get_max_sclk(&self) -> Option<u32>;
+    fn get_max_sclk(&self) -> Option<u32> {
+        self.get_current_sclk_range().max
+    }
+
+    /// Gets the current range of values for core clocks.
+    fn get_current_sclk_range(&self) -> Range;
+
+    /// Gets the current range of values for memory clocks.
+    fn get_current_mclk_range(&self) -> Range;
 
     /// Sets the maximum core clock.
     fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
@@ -56,8 +76,20 @@ pub trait ClocksTable: FromStr {
     /// Sets the maximum core clock (without checking if it's in the allowed range).
     fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
 
+    /// Sets the minimum core clock.
+    fn set_min_sclk(&mut self, clockspeed: u32) -> Result<()> {
+        let range = self.get_min_sclk_range();
+        check_clockspeed_in_range(range, clockspeed)?;
+        self.set_min_sclk_unchecked(clockspeed)
+    }
+
+    /// Sets the minimum core clock (without checking if it's in the allowed range).
+    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+
     /// Gets the current maximum memory clock.
-    fn get_max_mclk(&self) -> Option<u32>;
+    fn get_max_mclk(&self) -> Option<u32> {
+        self.get_current_mclk_range().max
+    }
 
     /// Sets the maximum memory clock.
     fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
@@ -69,6 +101,16 @@ pub trait ClocksTable: FromStr {
     /// Sets the maximum memory clock (without checking if it's in the allowed range).
     fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
 
+    /// Sets the minimum memory clock.
+    fn set_min_mclk(&mut self, clockspeed: u32) -> Result<()> {
+        let range = self.get_min_mclk_range();
+        check_clockspeed_in_range(range, clockspeed)?;
+        self.set_min_mclk_unchecked(clockspeed)
+    }
+
+    /// Sets the minimum memory clock (without checking if it's in the allowed range).
+    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+
     /// Sets the voltage to be used at the maximum clockspeed.
     fn set_max_voltage(&mut self, voltage: u32) -> Result<()> {
         let range = self.get_max_voltage_range();
@@ -78,6 +120,16 @@ pub trait ClocksTable: FromStr {
 
     /// Sets the voltage to be used at the maximum clockspeed (without checking if it's in the allowed range).
     fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()>;
+
+    /// Sets the voltage to be used at the minimum clockspeed.
+    fn set_min_voltage(&mut self, voltage: u32) -> Result<()> {
+        let range = self.get_min_voltage_range();
+        check_clockspeed_in_range(range, voltage)?;
+        self.set_min_voltage_unchecked(voltage)
+    }
+
+    /// Sets the voltage to be used at the minimum clockspeed (without checking if it's in the allowed range).
+    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()>;
 
     /// Gets the current maximum voltage (used on maximum clockspeed).
     fn get_max_sclk_voltage(&self) -> Option<u32>;
