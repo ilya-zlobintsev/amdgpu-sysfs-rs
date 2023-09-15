@@ -1,0 +1,17 @@
+OD_SCLK:
+0: 500Mhz
+1: 3005Mhz
+OD_MCLK:
+0: 97Mhz
+1: 1250MHz
+OD_VDDC_CURVE:
+0: 0mv
+1: 0mv
+2: 0mv
+3: 0mv
+4: 0mv
+5: 0mv
+OD_RANGE:
+SCLK: 500Mhz 5000Mhz
+MCLK: 97Mhz 1500Mhz
+VDDC_CURVE: -450mv 0mv

@@ -4,19 +4,21 @@ expression: table
 ---
 current_sclk_range:
   min: 500
-  max: 2499
+  max: 3005
 current_mclk_range:
   min: 97
-  max: 1000
+  max: 1250
 vddc_curve: []
-voltage_offset: -10
+voltage_offset: ~
 od_range:
   sclk:
     min: 500
-    max: 3000
+    max: 5000
   mclk:
-    min: 674
-    max: 1075
+    min: 97
+    max: 1500
   curve_sclk_points: []
-  curve_voltage_points: []
+  curve_voltage_points:
+    - min: -450
+      max: 0
 

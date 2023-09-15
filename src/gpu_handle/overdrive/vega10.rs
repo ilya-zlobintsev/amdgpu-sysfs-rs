@@ -77,7 +77,7 @@ impl ClocksTable for Table {
         Range { min, max }
     }
 
-    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.sclk_levels
             .last_mut()
             .ok_or_else(|| {
@@ -87,7 +87,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.sclk_levels
             .first_mut()
             .ok_or_else(|| {
@@ -97,7 +97,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.mclk_levels
             .last_mut()
             .ok_or_else(|| {
@@ -107,7 +107,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.mclk_levels
             .first_mut()
             .ok_or_else(|| {
@@ -117,7 +117,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+    fn set_max_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
         self.sclk_levels
             .last_mut()
             .ok_or_else(|| {
@@ -128,7 +128,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+    fn set_min_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
         self.sclk_levels
             .first_mut()
             .ok_or_else(|| {
@@ -139,7 +139,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn get_max_sclk_voltage(&self) -> Option<u32> {
+    fn get_max_sclk_voltage(&self) -> Option<i32> {
         self.sclk_levels.last().map(|level| level.voltage)
     }
 }

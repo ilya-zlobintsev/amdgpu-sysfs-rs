@@ -17,5 +17,6 @@ od_range:
   mclk:
     min: 674
     max: 1075
-  voltage_points: []
+  curve_sclk_points: []
+  curve_voltage_points: []
 

@@ -293,11 +293,12 @@ impl SysFS for GpuHandle {
 /// Performance level to be used by the GPU.
 ///
 /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
 pub enum PerformanceLevel {
     /// When auto is selected, the driver will attempt to dynamically select the optimal power profile for current conditions in the driver.
+    #[default]
     Auto,
     /// When low is selected, the clocks are forced to the lowest power state.
     Low,
@@ -305,12 +306,6 @@ pub enum PerformanceLevel {
     High,
     /// When manual is selected, power states can be manually adjusted via `pp_dpm_*` files ([`GpuHandle::set_enabled_power_levels`]) and `pp_od_clk_voltage` ([`GpuHandle::set_clocks_table`]).
     Manual,
-}
-
-impl Default for PerformanceLevel {
-    fn default() -> Self {
-        PerformanceLevel::Auto
-    }
 }
 
 impl FromStr for PerformanceLevel {

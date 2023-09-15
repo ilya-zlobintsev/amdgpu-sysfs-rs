@@ -57,17 +57,17 @@ impl ClocksTable for Table {
 
     fn get_max_sclk_range(&self) -> Option<Range> {
         self.od_range
-            .voltage_points
+            .curve_sclk_points
             .last()
-            .map(|point| point.sclk)
+            .copied()
             .or(Some(self.od_range.sclk))
     }
 
     fn get_min_sclk_range(&self) -> Option<Range> {
         self.od_range
-            .voltage_points
+            .curve_sclk_points
             .first()
-            .map(|point| point.sclk)
+            .copied()
             .or(Some(self.od_range.sclk))
     }
 
@@ -80,17 +80,11 @@ impl ClocksTable for Table {
     }
 
     fn get_max_voltage_range(&self) -> Option<Range> {
-        self.od_range
-            .voltage_points
-            .last()
-            .map(|point| point.voltage)
+        self.od_range.curve_voltage_points.last().copied()
     }
 
     fn get_min_voltage_range(&self) -> Option<Range> {
-        self.od_range
-            .voltage_points
-            .first()
-            .map(|point| point.voltage)
+        self.od_range.curve_voltage_points.first().copied()
     }
 
     fn get_current_voltage_range(&self) -> Option<Range> {
@@ -107,7 +101,7 @@ impl ClocksTable for Table {
         self.current_mclk_range
     }
 
-    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.current_sclk_range.max = Some(clockspeed);
         if let Some(point) = self.vddc_curve.last_mut() {
             point.clockspeed = clockspeed;
@@ -115,7 +109,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.current_sclk_range.min = Some(clockspeed);
         if let Some(point) = self.vddc_curve.first_mut() {
             point.clockspeed = clockspeed;
@@ -123,17 +117,17 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.current_mclk_range.max = Some(clockspeed);
         Ok(())
     }
 
-    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
         self.current_mclk_range.min = Some(clockspeed);
         Ok(())
     }
 
-    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+    fn set_max_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
         self.vddc_curve
             .last_mut()
             .ok_or_else(|| {
@@ -143,7 +137,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()> {
+    fn set_min_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
         self.vddc_curve
             .first_mut()
             .ok_or_else(|| {
@@ -153,7 +147,7 @@ impl ClocksTable for Table {
         Ok(())
     }
 
-    fn get_max_sclk_voltage(&self) -> Option<u32> {
+    fn get_max_sclk_voltage(&self) -> Option<i32> {
         self.vddc_curve.last().map(|level| level.voltage)
     }
 }
@@ -170,8 +164,8 @@ impl FromStr for Table {
         let mut allowed_mclk_range = None;
 
         let mut vddc_curve = Vec::with_capacity(3);
-        let mut sclk_range_points = Vec::with_capacity(3);
-        let mut volt_range_points = Vec::with_capacity(3);
+        let mut curve_sclk_points = Vec::with_capacity(3);
+        let mut curve_voltage_points = Vec::with_capacity(3);
 
         let mut voltage_offset = None;
 
@@ -191,11 +185,14 @@ impl FromStr for Table {
                     // Voltage points will overwrite maximum clock info, with the last one taking priority
                     Some(Section::Range) if line.starts_with("VDDC_CURVE_SCLK") => {
                         let (range, _) = parse_range_line(line, i)?;
-                        sclk_range_points.push(range);
+                        curve_sclk_points.push(range);
                     }
-                    Some(Section::Range) if line.starts_with("VDDC_CURVE_VOLT") => {
+                    Some(Section::Range)
+                        if line.starts_with("VDDC_CURVE_VOLT")
+                            || (line.starts_with("VDDC_CURVE:") && line.contains("mv")) =>
+                    {
                         let (range, _) = parse_range_line(line, i)?;
-                        volt_range_points.push(range);
+                        curve_voltage_points.push(range);
                     }
                     Some(Section::Range) => {
                         let (range, name) = parse_range_line(line, i)?;
@@ -213,7 +210,9 @@ impl FromStr for Table {
                     }
                     Some(Section::Sclk) => parse_min_max_line(line, i, &mut current_sclk_range)?,
                     Some(Section::Mclk) => parse_min_max_line(line, i, &mut current_mclk_range)?,
-                    Some(Section::VddcCurve) => push_level_line(line, &mut vddc_curve, i)?,
+                    Some(Section::VddcCurve) => {
+                        let _ = push_level_line(line, &mut vddc_curve, i);
+                    }
                     Some(Section::VddGfxOffset) => {
                         let offset = parse_voltage_offset_line(line, i)?;
                         voltage_offset = Some(offset);
@@ -230,12 +229,6 @@ impl FromStr for Table {
             i += 1;
         }
 
-        let voltage_points = sclk_range_points
-            .into_iter()
-            .zip(volt_range_points)
-            .map(|(sclk, voltage)| VoltagePointRange { sclk, voltage })
-            .collect();
-
         let od_range = OdRange {
             sclk: allowed_sclk_range.ok_or_else(|| ParseError {
                 msg: "No sclk range found".to_owned(),
@@ -245,7 +238,8 @@ impl FromStr for Table {
                 msg: "No mclk range found".to_owned(),
                 line: i,
             })?),
-            voltage_points,
+            curve_sclk_points,
+            curve_voltage_points,
         };
         let current_sclk_range = current_sclk_range.ok_or_else(|| ParseError {
             msg: "No current sclk range found".to_owned(),
@@ -288,20 +282,13 @@ pub struct OdRange {
     pub sclk: Range,
     /// Clocks range for mclk (in MHz). Present on discrete GPUs only.
     pub mclk: Option<Range>,
-    /// Ranges available at specific voltage points.
-    pub voltage_points: Vec<VoltagePointRange>,
+    /// Frequencies available at specific levels.
+    pub curve_sclk_points: Vec<Range>,
+    /// Ranges available at specific levels.
+    pub curve_voltage_points: Vec<Range>,
 }
 
-/// Range available at specific voltage points.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct VoltagePointRange {
-    /// Core clock range.
-    pub sclk: Range,
-    /// Voltage range.
-    pub voltage: Range,
-}
-
+#[derive(Debug)]
 enum Section {
     Sclk,
     Mclk,
@@ -310,7 +297,7 @@ enum Section {
     VddGfxOffset,
 }
 
-fn parse_clockspeed_line(line: &str, i: usize) -> Result<(u32, usize)> {
+fn parse_clockspeed_line(line: &str, i: usize) -> Result<(i32, usize)> {
     let mut split = line.split_whitespace();
     let num = parse_line_item(&mut split, i, "level number", &[":"])?;
     let clockspeed = parse_line_item(&mut split, i, "clockspeed", &["mhz"])?;
@@ -352,11 +339,11 @@ fn parse_voltage_offset_line(line: &str, i: usize) -> Result<i32> {
     }
 }
 
-fn clockspeed_line(symbol: char, index: usize, clockspeed: u32) -> String {
+fn clockspeed_line(symbol: char, index: usize, clockspeed: i32) -> String {
     format!("{symbol} {index} {clockspeed}\n")
 }
 
-fn vddc_curve_line(index: usize, clockspeed: u32, voltage: u32) -> String {
+fn vddc_curve_line(index: usize, clockspeed: i32, voltage: i32) -> String {
     format!("vc {index} {clockspeed} {voltage}\n")
 }
 
@@ -368,9 +355,7 @@ fn voltage_offset_line(offset: i32) -> String {
 mod tests {
     use super::{OdRange, Table};
     use crate::{
-        gpu_handle::overdrive::{
-            arr_commands, vega20::VoltagePointRange, ClocksLevel, ClocksTable, Range,
-        },
+        gpu_handle::overdrive::{arr_commands, ClocksLevel, ClocksTable, Range},
         include_table,
     };
     use insta::assert_yaml_snapshot;
@@ -381,6 +366,7 @@ mod tests {
     const TABLE_6900XT: &str = include_table!("rx6900xt");
     const TABLE_6700XT: &str = include_table!("rx6700xt");
     const TABLE_6800: &str = include_table!("rx6800");
+    const TABLE_7900XTX: &str = include_table!("rx7900xtx");
 
     #[test]
     fn parse_5700xt_full() {
@@ -393,25 +379,22 @@ mod tests {
             .map(|(clockspeed, voltage)| ClocksLevel::new(clockspeed, voltage));
         assert_eq!(table.vddc_curve, vddc_curve);
 
-        let voltage_points = vec![
-            VoltagePointRange {
-                sclk: Range::full(800, 2150),
-                voltage: Range::full(750, 1200),
-            },
-            VoltagePointRange {
-                sclk: Range::full(800, 2150),
-                voltage: Range::full(750, 1200),
-            },
-            VoltagePointRange {
-                sclk: Range::full(800, 2150),
-                voltage: Range::full(750, 1200),
-            },
+        let curve_sclk_points = vec![
+            Range::full(800, 2150),
+            Range::full(800, 2150),
+            Range::full(800, 2150),
+        ];
+        let curve_voltage_points = vec![
+            Range::full(750, 1200),
+            Range::full(750, 1200),
+            Range::full(750, 1200),
         ];
 
         let od_range = OdRange {
             sclk: Range::full(800, 2150),
             mclk: Some(Range::full(625, 950)),
-            voltage_points,
+            curve_sclk_points,
+            curve_voltage_points,
         };
         assert_eq!(table.od_range, od_range);
     }
@@ -474,7 +457,8 @@ mod tests {
             od_range: OdRange {
                 sclk: Range::empty(),
                 mclk: None,
-                voltage_points: Vec::new(),
+                curve_sclk_points: Vec::new(),
+                curve_voltage_points: Vec::new(),
             },
         };
 
@@ -574,5 +558,11 @@ mod tests {
         table.voltage_offset = Some(10);
 
         assert_yaml_snapshot!(table.get_commands().unwrap());
+    }
+
+    #[test]
+    fn parse_7900xtx_full() {
+        let table = Table::from_str(TABLE_7900XTX).unwrap();
+        assert_yaml_snapshot!(table);
     }
 }

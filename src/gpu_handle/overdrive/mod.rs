@@ -56,7 +56,7 @@ pub trait ClocksTable: FromStr {
     fn get_current_voltage_range(&self) -> Option<Range>;
 
     /// Gets the current maximum core clock.
-    fn get_max_sclk(&self) -> Option<u32> {
+    fn get_max_sclk(&self) -> Option<i32> {
         self.get_current_sclk_range().max
     }
 
@@ -67,75 +67,75 @@ pub trait ClocksTable: FromStr {
     fn get_current_mclk_range(&self) -> Range;
 
     /// Sets the maximum core clock.
-    fn set_max_sclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_sclk(&mut self, clockspeed: i32) -> Result<()> {
         let range = self.get_max_sclk_range();
         check_clockspeed_in_range(range, clockspeed)?;
         self.set_max_sclk_unchecked(clockspeed)
     }
 
     /// Sets the maximum core clock (without checking if it's in the allowed range).
-    fn set_max_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_max_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()>;
 
     /// Sets the minimum core clock.
-    fn set_min_sclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_sclk(&mut self, clockspeed: i32) -> Result<()> {
         let range = self.get_min_sclk_range();
         check_clockspeed_in_range(range, clockspeed)?;
         self.set_min_sclk_unchecked(clockspeed)
     }
 
     /// Sets the minimum core clock (without checking if it's in the allowed range).
-    fn set_min_sclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_min_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()>;
 
     /// Gets the current maximum memory clock.
-    fn get_max_mclk(&self) -> Option<u32> {
+    fn get_max_mclk(&self) -> Option<i32> {
         self.get_current_mclk_range().max
     }
 
     /// Sets the maximum memory clock.
-    fn set_max_mclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_max_mclk(&mut self, clockspeed: i32) -> Result<()> {
         let range = self.get_max_mclk_range();
         check_clockspeed_in_range(range, clockspeed)?;
         self.set_max_mclk_unchecked(clockspeed)
     }
 
     /// Sets the maximum memory clock (without checking if it's in the allowed range).
-    fn set_max_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_max_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()>;
 
     /// Sets the minimum memory clock.
-    fn set_min_mclk(&mut self, clockspeed: u32) -> Result<()> {
+    fn set_min_mclk(&mut self, clockspeed: i32) -> Result<()> {
         let range = self.get_min_mclk_range();
         check_clockspeed_in_range(range, clockspeed)?;
         self.set_min_mclk_unchecked(clockspeed)
     }
 
     /// Sets the minimum memory clock (without checking if it's in the allowed range).
-    fn set_min_mclk_unchecked(&mut self, clockspeed: u32) -> Result<()>;
+    fn set_min_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()>;
 
     /// Sets the voltage to be used at the maximum clockspeed.
-    fn set_max_voltage(&mut self, voltage: u32) -> Result<()> {
+    fn set_max_voltage(&mut self, voltage: i32) -> Result<()> {
         let range = self.get_max_voltage_range();
         check_clockspeed_in_range(range, voltage)?;
         self.set_max_voltage_unchecked(voltage)
     }
 
     /// Sets the voltage to be used at the maximum clockspeed (without checking if it's in the allowed range).
-    fn set_max_voltage_unchecked(&mut self, voltage: u32) -> Result<()>;
+    fn set_max_voltage_unchecked(&mut self, voltage: i32) -> Result<()>;
 
     /// Sets the voltage to be used at the minimum clockspeed.
-    fn set_min_voltage(&mut self, voltage: u32) -> Result<()> {
+    fn set_min_voltage(&mut self, voltage: i32) -> Result<()> {
         let range = self.get_min_voltage_range();
         check_clockspeed_in_range(range, voltage)?;
         self.set_min_voltage_unchecked(voltage)
     }
 
     /// Sets the voltage to be used at the minimum clockspeed (without checking if it's in the allowed range).
-    fn set_min_voltage_unchecked(&mut self, voltage: u32) -> Result<()>;
+    fn set_min_voltage_unchecked(&mut self, voltage: i32) -> Result<()>;
 
     /// Gets the current maximum voltage (used on maximum clockspeed).
-    fn get_max_sclk_voltage(&self) -> Option<u32>;
+    fn get_max_sclk_voltage(&self) -> Option<i32>;
 }
 
-fn check_clockspeed_in_range(range: Option<Range>, clockspeed: u32) -> Result<()> {
+fn check_clockspeed_in_range(range: Option<Range>, clockspeed: i32) -> Result<()> {
     if let (Some(min), Some(max)) = range.map_or((None, None), |range| (range.min, range.max)) {
         if (min..=max).contains(&clockspeed) {
             Ok(())
@@ -231,14 +231,14 @@ where
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Range {
     /// The lower value of a range.
-    pub min: Option<u32>,
+    pub min: Option<i32>,
     /// The higher value of a range.
-    pub max: Option<u32>,
+    pub max: Option<i32>,
 }
 
 impl Range {
     /// Creates a range with both a minimum and a maximum value.
-    pub fn full(min: u32, max: u32) -> Self {
+    pub fn full(min: i32, max: i32) -> Self {
         Self {
             min: Some(min),
             max: Some(max),
@@ -246,7 +246,7 @@ impl Range {
     }
 
     /// Creates a rage with a minimum value only.
-    pub fn min(min: u32) -> Self {
+    pub fn min(min: i32) -> Self {
         Self {
             min: Some(min),
             max: None,
@@ -254,7 +254,7 @@ impl Range {
     }
 
     /// Creates a rage with a maximum value only.
-    pub fn max(max: u32) -> Self {
+    pub fn max(max: i32) -> Self {
         Self {
             min: None,
             max: Some(max),
@@ -270,7 +270,7 @@ impl Range {
     }
 }
 
-impl TryFrom<Range> for (u32, u32) {
+impl TryFrom<Range> for (i32, i32) {
     type Error = ();
 
     fn try_from(value: Range) -> std::result::Result<Self, Self::Error> {
@@ -287,14 +287,14 @@ impl TryFrom<Range> for (u32, u32) {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClocksLevel {
     /// Clockspeed (in MHz)
-    pub clockspeed: u32,
+    pub clockspeed: i32,
     /// Voltage (in mV)
-    pub voltage: u32,
+    pub voltage: i32,
 }
 
 impl ClocksLevel {
     /// Create a new clocks level.
-    pub fn new(clockspeed: u32, voltage: u32) -> Self {
+    pub fn new(clockspeed: i32, voltage: i32) -> Self {
         Self {
             clockspeed,
             voltage,
