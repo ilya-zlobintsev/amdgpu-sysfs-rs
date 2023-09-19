@@ -42,15 +42,22 @@ impl HwMon {
 
         let mut i = 1;
 
-        while let Ok(label) = self.read_file(&format!("temp{}_label", i)) {
-            temps.insert(
-                label,
-                Temperature {
-                    current: self.read_temp(&format!("temp{}_input", i)).ok(),
-                    crit: self.read_temp(&format!("temp{}_crit", i)).ok(),
-                    crit_hyst: self.read_temp(&format!("temp{}_crit_hyst", i)).ok(),
-                },
-            );
+        while let Ok(current) = self.read_temp(&format!("temp{i}_input")) {
+            let temperature = Temperature {
+                current: Some(current),
+                crit: self.read_temp(&format!("temp{i}_crit")).ok(),
+                crit_hyst: self.read_temp(&format!("temp{i}_crit_hyst")).ok(),
+            };
+
+            match self.read_file(&format!("temp{i}_label")) {
+                Ok(label) => {
+                    temps.insert(label, temperature);
+                }
+                Err(_) => {
+                    temps.insert(i.to_string(), temperature);
+                    break;
+                }
+            }
 
             i += 1;
         }
