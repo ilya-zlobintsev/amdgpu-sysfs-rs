@@ -1,0 +1,12 @@
+OD_SCLK:
+0: 500Mhz
+1: 2975Mhz
+OD_MCLK:
+0: 97Mhz
+1: 1250MHz
+OD_VDDGFX_OFFSET:
+0mV
+OD_RANGE:
+SCLK:     500Mhz       5000Mhz
+MCLK:      97Mhz       1500Mhz
+VDDGFX_OFFSET:    -450mv          0mv

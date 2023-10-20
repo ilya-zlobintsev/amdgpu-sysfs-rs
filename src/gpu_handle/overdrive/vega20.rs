@@ -182,6 +182,7 @@ impl FromStr for Table {
                 "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
                 "OD_VDDGFX_OFFSET:" => current_section = Some(Section::VddGfxOffset),
                 line => match current_section {
+                    _ if line.starts_with("VDDGFX_OFFSET:") => continue,
                     // Voltage points will overwrite maximum clock info, with the last one taking priority
                     Some(Section::Range) if line.starts_with("VDDC_CURVE_SCLK") => {
                         let (range, _) = parse_range_line(line, i)?;
@@ -367,6 +368,7 @@ mod tests {
     const TABLE_6700XT: &str = include_table!("rx6700xt");
     const TABLE_6800: &str = include_table!("rx6800");
     const TABLE_7900XTX: &str = include_table!("rx7900xtx");
+    const TABLE_7900XT: &str = include_table!("rx7900xt");
 
     #[test]
     fn parse_5700xt_full() {
@@ -563,6 +565,12 @@ mod tests {
     #[test]
     fn parse_7900xtx_full() {
         let table = Table::from_str(TABLE_7900XTX).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_7900xt_full() {
+        let table = Table::from_str(TABLE_7900XT).unwrap();
         assert_yaml_snapshot!(table);
     }
 }
