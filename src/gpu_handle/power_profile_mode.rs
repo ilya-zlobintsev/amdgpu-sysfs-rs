@@ -68,6 +68,7 @@ mod tests {
     const TABLE_RX580: &str = include_test_data!("rx580/pp_power_profile_mode");
     const TABLE_4800H: &str = include_test_data!("internal-4800h/pp_power_profile_mode");
     const TABLE_RX6900XT: &str = include_test_data!("rx6900xt/pp_power_profile_mode");
+    const TABLE_RX7800XT: &str = include_test_data!("rx7800xt/pp_power_profile_mode");
 
     #[test]
     fn parse_full_vega56() {
@@ -90,6 +91,12 @@ mod tests {
     #[test]
     fn parse_full_rx6900xt() {
         let table = PowerProfileModesTable::parse(TABLE_RX6900XT).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_full_rx7800xt() {
+        let table = PowerProfileModesTable::parse(TABLE_RX7800XT).unwrap();
         assert_yaml_snapshot!(table);
     }
 }
