@@ -96,6 +96,11 @@ impl HwMon {
         self.read_power("power1_average")
     }
 
+    /// Gets the instantaneous power (currently) used by the GPU in watts.
+    pub fn get_power_input(&self) -> Result<f64> {
+        self.read_power("power1_input")
+    }
+
     /// Gets the current power cap of the GPU in watts.
     pub fn get_power_cap(&self) -> Result<f64> {
         self.read_power("power1_cap")
