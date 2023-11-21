@@ -69,7 +69,7 @@ test_with_handle! {
                 "8.0GT/s, x16",
                 "8.0GT/s, x16"
             ].map(str::to_owned).to_vec(),
-            active: Some(1)
+            active: None
         })
     }
 }

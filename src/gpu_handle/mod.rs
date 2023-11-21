@@ -169,18 +169,25 @@ impl GpuHandle {
         self.read_file(kind.filename()).and_then(|content| {
             let mut levels = Vec::new();
             let mut active = None;
+            let mut invalid_active = false;
 
             for mut line in content.trim().split('\n') {
                 if let Some(stripped) = line.strip_suffix('*') {
                     line = stripped;
 
                     if let Some(identifier) = stripped.split(':').next() {
-                        active = Some(
-                            identifier
-                                .trim()
-                                .parse()
-                                .context("Unexpected power level identifier")?,
-                        );
+                        if !invalid_active {
+                            if active.is_some() {
+                                active = None;
+                                invalid_active = true;
+                            } else {
+                                let idx = identifier
+                                    .trim()
+                                    .parse()
+                                    .context("Unexpected power level identifier")?;
+                                active = Some(idx);
+                            }
+                        }
                     }
                 }
                 if let Some(s) = line.split(':').last() {
