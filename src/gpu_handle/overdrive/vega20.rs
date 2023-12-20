@@ -264,13 +264,12 @@ impl FromStr for Table {
 impl Table {
     /// Clears the table of all "applicable" values.
     ///
-    /// This removes all values except the allowed range.
+    /// This removes all values except the allowed range and voltage curve.
     /// You can use it to avoid overwriting the table with already present values, as it can be problematic on some cards.
     /// It is intended to be used before calling `set_*` functions and generating commands/writing the table.
     pub fn clear(&mut self) {
         self.current_sclk_range = Range::empty();
         self.current_mclk_range = Range::empty();
-        self.vddc_curve.clear();
         self.voltage_offset = None;
     }
 }
@@ -363,6 +362,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use std::str::FromStr;
 
+    const TABLE_5500XT: &str = include_table!("rx5500xt");
     const TABLE_5700XT: &str = include_table!("rx5700xt");
     const TABLE_6900XT: &str = include_table!("rx6900xt");
     const TABLE_6700XT: &str = include_table!("rx6700xt");
@@ -415,6 +415,9 @@ mod tests {
         table.set_max_mclk(950).unwrap();
         assert_eq!(table.get_max_mclk(), Some(950));
         assert_eq!(table.current_mclk_range.max, Some(950));
+        
+        table.set_max_voltage(1150).unwrap();
+        assert_eq!(table.vddc_curve[2].voltage, 1150);
 
         let sclk_range = table.get_max_sclk_range();
         let mclk_range = table.get_max_mclk_range();
@@ -446,6 +449,23 @@ mod tests {
             "vc 2 2150 1200",
         ]);
 
+        assert_eq!(expected_commands, commands);
+    }
+    
+    #[test]
+    fn write_commands_5500xt() {
+        let mut table = Table::from_str(TABLE_5500XT).unwrap();
+        table.clear();
+        table.set_max_sclk(1900).unwrap();
+        table.set_max_voltage(1140).unwrap();
+        
+        let commands = table.get_commands().unwrap();
+        let expected_commands = vec![
+            "s 1 1900",
+            "vc 0 500 710",
+            "vc 1 1162 794",
+            "vc 2 1900 1140"
+        ];
         assert_eq!(expected_commands, commands);
     }
 
