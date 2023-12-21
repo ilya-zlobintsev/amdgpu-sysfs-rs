@@ -1,7 +1,7 @@
 //! The format used by Vega20 and newer GPUs.
 use super::{parse_line_item, parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
 use crate::{
-    error::{Error, ErrorKind::ParseError},
+    error::{Error, ErrorContext, ErrorKind::ParseError},
     gpu_handle::trim_sysfs_line,
     Result,
 };
@@ -38,18 +38,24 @@ impl ClocksTable for Table {
         for (maybe_clockspeed, symbol, index) in clockspeeds {
             if let Some(clockspeed) = maybe_clockspeed {
                 let line = clockspeed_line(symbol, index, clockspeed);
-                writer.write_all(line.as_bytes())?;
+                writer
+                    .write_all(line.as_bytes())
+                    .with_context(|| format!("Error when writing clockspeed line `{line}`"))?;
             }
         }
 
         for (i, level) in self.vddc_curve.iter().enumerate() {
             let line = vddc_curve_line(i, level.clockspeed, level.voltage);
-            writer.write_all(line.as_bytes())?;
+            writer
+                .write_all(line.as_bytes())
+                .with_context(|| format!("Error when writing VDDC line `{line}`"))?;
         }
 
         if let Some(offset) = self.voltage_offset {
             let line = voltage_offset_line(offset);
-            writer.write_all(line.as_bytes())?;
+            writer
+                .write_all(line.as_bytes())
+                .with_context(|| format!("Error when writing voltage offset `{line}`"))?;
         }
 
         Ok(())
@@ -415,7 +421,7 @@ mod tests {
         table.set_max_mclk(950).unwrap();
         assert_eq!(table.get_max_mclk(), Some(950));
         assert_eq!(table.current_mclk_range.max, Some(950));
-        
+
         table.set_max_voltage(1150).unwrap();
         assert_eq!(table.vddc_curve[2].voltage, 1150);
 
@@ -451,20 +457,20 @@ mod tests {
 
         assert_eq!(expected_commands, commands);
     }
-    
+
     #[test]
     fn write_commands_5500xt() {
         let mut table = Table::from_str(TABLE_5500XT).unwrap();
         table.clear();
         table.set_max_sclk(1900).unwrap();
         table.set_max_voltage(1140).unwrap();
-        
+
         let commands = table.get_commands().unwrap();
         let expected_commands = vec![
             "s 1 1900",
             "vc 0 500 710",
             "vc 1 1162 794",
-            "vc 2 1900 1140"
+            "vc 2 1900 1140",
         ];
         assert_eq!(expected_commands, commands);
     }
