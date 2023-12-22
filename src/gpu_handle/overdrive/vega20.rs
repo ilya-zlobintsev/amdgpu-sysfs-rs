@@ -7,7 +7,7 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{io::Write, str::FromStr};
+use std::{cmp, io::Write, str::FromStr};
 
 /// Vega20 clocks table.
 #[derive(Debug, Clone)]
@@ -278,6 +278,33 @@ impl Table {
         self.current_mclk_range = Range::empty();
         self.voltage_offset = None;
     }
+
+    /// Normalizes the VDDC curve making sure all of the values are within the allowed range.
+    /// This is needed as some GPUs have default values outside of the allowed range.
+    pub fn normalize_vddc_curve(&mut self) {
+        for (i, point) in self.vddc_curve.iter_mut().enumerate() {
+            if let Some(sclk_range) = self.od_range.curve_sclk_points.get(i) {
+                let normalized_clockspeed = normalize_value(point.clockspeed, *sclk_range);
+                point.clockspeed = normalized_clockspeed;
+            }
+
+            if let Some(voltage_range) = self.od_range.curve_voltage_points.get(i) {
+                let normalized_voltage = normalize_value(point.voltage, *voltage_range);
+                point.voltage = normalized_voltage;
+            }
+        }
+    }
+}
+
+fn normalize_value(mut value: i32, range: Range) -> i32 {
+    if let Some(min_allowed) = range.min {
+        value = cmp::max(min_allowed, value);
+    }
+    if let Some(max_allowed) = range.max {
+        value = cmp::min(max_allowed, value);
+    }
+
+    value
 }
 
 /// The ranges for overclocking values which the GPU allows to be used.
@@ -456,6 +483,24 @@ mod tests {
         ]);
 
         assert_eq!(expected_commands, commands);
+    }
+
+    #[test]
+    fn normalize_vddc_curve_5700xt() {
+        let mut table = Table::from_str(TABLE_5700XT).unwrap();
+        let voltage_range = table.od_range.curve_voltage_points[0];
+        // The table has points outside of the allowed range by default
+        assert!(table.vddc_curve.iter().any(|level| {
+            level.voltage < voltage_range.min.unwrap() || level.voltage > voltage_range.max.unwrap()
+        }));
+
+        table.normalize_vddc_curve();
+
+        // The table does not have any points outside of the allowed range after normalization
+        assert!(!table.vddc_curve.iter().any(|level| {
+            level.voltage < voltage_range.min.unwrap() || level.voltage > voltage_range.max.unwrap()
+        }));
+        assert_eq!(750, table.vddc_curve[0].voltage);
     }
 
     #[test]
