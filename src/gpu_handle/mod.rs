@@ -102,24 +102,45 @@ impl GpuHandle {
         self.uevent.get("PCI_SLOT_NAME").map(|s| s.as_str())
     }
 
+    fn get_link(&self, file_name: &str) -> Result<String> {
+        const NAVI10_UPSTREAM_PORT: &str = "0x1478\n";
+        const NAVI10_DOWNSTREAM_PORT: &str = "0x1479\n";
+
+        let mut sysfs_path = std::fs::canonicalize(self.get_path())?.join("../"); // pcie port
+
+        for _ in 0..2 {
+            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else { break };
+
+            if &did == NAVI10_UPSTREAM_PORT || &did == NAVI10_DOWNSTREAM_PORT {
+                sysfs_path.push("../");
+            } else {
+                break;
+            }
+        }
+
+        sysfs_path.pop();
+
+        Self { sysfs_path, hw_monitors: Vec::new(), uevent: HashMap::new() }.read_file(file_name)
+    }
+
     /// Gets the current PCIe link speed.
     pub fn get_current_link_speed(&self) -> Result<String> {
-        self.read_file("current_link_speed")
+        self.get_link("current_link_speed")
     }
 
     /// Gets the current PCIe link width.
     pub fn get_current_link_width(&self) -> Result<String> {
-        self.read_file("current_link_width")
+        self.get_link("current_link_width")
     }
 
     /// Gets the maximum possible PCIe link speed.
     pub fn get_max_link_speed(&self) -> Result<String> {
-        self.read_file("max_link_speed")
+        self.get_link("max_link_speed")
     }
 
     /// Gets the maximum possible PCIe link width.
     pub fn get_max_link_width(&self) -> Result<String> {
-        self.read_file("max_link_width")
+        self.get_link("max_link_width")
     }
 
     fn read_vram_file(&self, file: &str) -> Result<u64> {
