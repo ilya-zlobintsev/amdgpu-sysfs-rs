@@ -3,12 +3,15 @@
 pub mod overdrive;
 #[macro_use]
 mod power_levels;
+pub mod fan_control;
 pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
+use self::fan_control::AcousticInfo;
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
+    gpu_handle::fan_control::FanCtrlContents,
     hw_mon::HwMon,
     sysfs::SysFS,
     Result,
@@ -103,15 +106,18 @@ impl GpuHandle {
     }
 
     fn get_link(&self, file_name: &str) -> Result<String> {
+        // Despite being labled NAVI10, newer generations use the same port device ids
         const NAVI10_UPSTREAM_PORT: &str = "0x1478\n";
         const NAVI10_DOWNSTREAM_PORT: &str = "0x1479\n";
 
         let mut sysfs_path = std::fs::canonicalize(self.get_path())?.join("../"); // pcie port
 
         for _ in 0..2 {
-            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else { break };
+            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else {
+                break;
+            };
 
-            if &did == NAVI10_UPSTREAM_PORT || &did == NAVI10_DOWNSTREAM_PORT {
+            if did == NAVI10_UPSTREAM_PORT || did == NAVI10_DOWNSTREAM_PORT {
                 sysfs_path.push("../");
             } else {
                 break;
@@ -120,7 +126,12 @@ impl GpuHandle {
 
         sysfs_path.pop();
 
-        Self { sysfs_path, hw_monitors: Vec::new(), uevent: HashMap::new() }.read_file(file_name)
+        Self {
+            sysfs_path,
+            hw_monitors: Vec::new(),
+            uevent: HashMap::new(),
+        }
+        .read_file(file_name)
     }
 
     /// Gets the current PCIe link speed.
@@ -309,6 +320,42 @@ impl GpuHandle {
     /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
     pub fn set_active_power_profile_mode(&self, i: u16) -> Result<()> {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
+    }
+
+    /// Gets the fan acoustic limit values.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_acoustic_limit(&self) -> Result<AcousticInfo> {
+        let data = self.read_file("gpu_od/fan_ctrl/acoustic_limit_rpm_threshold")?;
+        let contents = FanCtrlContents::parse(&data, "OD_ACOUSTIC_LIMIT")?;
+
+        let current = contents.contents.parse()?;
+        let (raw_min, raw_max) = contents
+            .od_range
+            .get("ACOUSTIC_LIMIT")
+            .ok_or_else(|| Error::basic_parse_error("Missing ACOUSTIC_LIMIT od range"))?;
+        let min = raw_min.parse()?;
+        let max = raw_max.parse()?;
+
+        Ok(AcousticInfo { current, min, max })
+    }
+
+    /// Gets the fan acoustic target values.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_acoustic_target(&self) -> Result<AcousticInfo> {
+        let data = self.read_file("gpu_od/fan_ctrl/acoustic_target_rpm_threshold")?;
+        let contents = FanCtrlContents::parse(&data, "OD_ACOUSTIC_TARGET")?;
+
+        let current = contents.contents.parse()?;
+        let (raw_min, raw_max) = contents
+            .od_range
+            .get("ACOUSTIC_TARGET")
+            .ok_or_else(|| Error::basic_parse_error("Missing ACOUSTIC_TARGET od range"))?;
+        let min = raw_min.parse()?;
+        let max = raw_max.parse()?;
+
+        Ok(AcousticInfo { current, min, max })
     }
 }
 
