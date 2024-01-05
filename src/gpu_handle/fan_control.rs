@@ -8,11 +8,10 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Write};
 
-/// Information about fan acoustics.
-/// Values are in RPM.
+/// Information about fan characteristics.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AcousticInfo {
+pub struct FanInfo {
     /// Current value
     pub current: u32,
     /// Minimum allowed value

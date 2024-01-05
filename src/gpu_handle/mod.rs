@@ -8,7 +8,7 @@ pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
-use self::fan_control::AcousticInfo;
+use self::fan_control::FanInfo;
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
     gpu_handle::fan_control::FanCtrlContents,
@@ -322,10 +322,10 @@ impl GpuHandle {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
     }
 
-    /// Gets the fan acoustic limit values.
+    /// Gets the fan acoustic limit. Values are in RPM.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
-    pub fn get_fan_acoustic_limit(&self) -> Result<AcousticInfo> {
+    pub fn get_fan_acoustic_limit(&self) -> Result<FanInfo> {
         let data = self.read_file("gpu_od/fan_ctrl/acoustic_limit_rpm_threshold")?;
         let contents = FanCtrlContents::parse(&data, "OD_ACOUSTIC_LIMIT")?;
 
@@ -337,13 +337,13 @@ impl GpuHandle {
         let min = raw_min.parse()?;
         let max = raw_max.parse()?;
 
-        Ok(AcousticInfo { current, min, max })
+        Ok(FanInfo { current, min, max })
     }
 
-    /// Gets the fan acoustic target values.
+    /// Gets the fan acoustic target. Values are in RPM.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
-    pub fn get_fan_acoustic_target(&self) -> Result<AcousticInfo> {
+    pub fn get_fan_acoustic_target(&self) -> Result<FanInfo> {
         let data = self.read_file("gpu_od/fan_ctrl/acoustic_target_rpm_threshold")?;
         let contents = FanCtrlContents::parse(&data, "OD_ACOUSTIC_TARGET")?;
 
@@ -355,7 +355,43 @@ impl GpuHandle {
         let min = raw_min.parse()?;
         let max = raw_max.parse()?;
 
-        Ok(AcousticInfo { current, min, max })
+        Ok(FanInfo { current, min, max })
+    }
+
+    /// Gets the fan temperature target. Values are in degrees.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_target_temperature(&self) -> Result<FanInfo> {
+        let data = self.read_file("gpu_od/fan_ctrl/fan_target_temperature")?;
+        let contents = FanCtrlContents::parse(&data, "FAN_TARGET_TEMPERATURE")?;
+        let (min, max) = contents
+            .od_range
+            .get("TARGET_TEMPERATURE")
+            .ok_or_else(|| Error::basic_parse_error("Missing TARGET_TEMPERATURE od range"))?;
+
+        Ok(FanInfo {
+            current: contents.contents.parse()?,
+            min: min.parse()?,
+            max: max.parse()?,
+        })
+    }
+
+    /// Gets the fan minimum PWM. Values are in RPM.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_minimum_pwm(&self) -> Result<FanInfo> {
+        let data = self.read_file("gpu_od/fan_ctrl/fan_minimum_pwm")?;
+        let contents = FanCtrlContents::parse(&data, "FAN_MINIMUM_PWM")?;
+        let (min, max) = contents
+            .od_range
+            .get("MINIMUM_PWM")
+            .ok_or_else(|| Error::basic_parse_error("Missing MINIMUM_PWM od range"))?;
+
+        Ok(FanInfo {
+            current: contents.contents.parse()?,
+            min: min.parse()?,
+            max: max.parse()?,
+        })
     }
 }
 
