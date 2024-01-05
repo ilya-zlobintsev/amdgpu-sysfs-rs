@@ -20,6 +20,18 @@ pub struct FanInfo {
     pub max: u32,
 }
 
+/// Custom fan curve
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FanCurve {
+    /// Fan curve points in the (temperature, speed) format
+    pub points: Vec<(u32, u8)>,
+    /// Temperature range allowed in curve points
+    pub temperature_range: (u32, u32),
+    /// Fan speed range allowed in curve points
+    pub speed_range: (u8, u8),
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub(crate) struct FanCtrlContents {
     pub contents: String,

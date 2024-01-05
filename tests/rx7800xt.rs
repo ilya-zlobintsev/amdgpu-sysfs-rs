@@ -1,6 +1,9 @@
 mod sysfs;
 
-use amdgpu_sysfs::gpu_handle::{fan_control::FanInfo, GpuHandle};
+use amdgpu_sysfs::gpu_handle::{
+    fan_control::{FanCurve, FanInfo},
+    GpuHandle,
+};
 
 test_with_handle! {
     "rx7800xt",
@@ -20,4 +23,8 @@ test_with_handle! {
         GpuHandle::get_fan_minimum_pwm,
         Ok(FanInfo { current: 20, min: 20, max: 100 })
     },
+    get_fan_curve => {
+        GpuHandle::get_fan_curve,
+        Ok(FanCurve { points: vec![(0, 0); 5], temperature_range: (25, 100), speed_range: (20, 100) })
+    }
 }

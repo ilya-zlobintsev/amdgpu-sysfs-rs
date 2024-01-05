@@ -8,7 +8,7 @@ pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
-use self::fan_control::FanInfo;
+use self::fan_control::{FanCurve, FanInfo};
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
     gpu_handle::fan_control::FanCtrlContents,
@@ -391,6 +391,61 @@ impl GpuHandle {
             current: contents.contents.parse()?,
             min: min.parse()?,
             max: max.parse()?,
+        })
+    }
+
+    /// Gets the fan curve.
+    /// Note: if no custom curve is used, all of the curve points may be set to 0.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_curve(&self) -> Result<FanCurve> {
+        let data = self.read_file("gpu_od/fan_ctrl/fan_curve")?;
+        let contents = FanCtrlContents::parse(&data, "OD_FAN_CURVE")?;
+        let points = contents
+            .contents
+            .lines()
+            .enumerate()
+            .map(|(i, line)| {
+                let mut split = line.split(' ');
+                split.next(); // Discard index
+
+                let raw_temp = split
+                    .next()
+                    .ok_or_else(|| Error::unexpected_eol("Temperature value", i))?;
+                let temp = raw_temp.trim_end_matches('C').parse()?;
+
+                let raw_speed = split
+                    .next()
+                    .ok_or_else(|| Error::unexpected_eol("Speed value", i))?;
+                let speed = raw_speed.trim_end_matches('%').parse()?;
+
+                Ok((temp, speed))
+            })
+            .collect::<Result<_>>()?;
+
+        let (min_temp, max_temp) = contents
+            .od_range
+            .get("FAN_CURVE(hotspot temp)")
+            .ok_or_else(|| Error::basic_parse_error("Missing hotspot temp range"))?;
+
+        let (min_speed, max_speed) = contents
+            .od_range
+            .get("FAN_CURVE(fan speed)")
+            .ok_or_else(|| Error::basic_parse_error("Missing fan speed range"))?;
+
+        let temperature_range = (
+            min_temp.trim_end_matches('C').parse()?,
+            max_temp.trim_end_matches('C').parse()?,
+        );
+        let speed_range = (
+            min_speed.trim_end_matches('%').parse()?,
+            max_speed.trim_end_matches('%').parse()?,
+        );
+
+        Ok(FanCurve {
+            points,
+            temperature_range,
+            speed_range,
         })
     }
 }
