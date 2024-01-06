@@ -14,10 +14,9 @@ use std::{collections::HashMap, fmt::Write};
 pub struct FanInfo {
     /// Current value
     pub current: u32,
-    /// Minimum allowed value
-    pub min: u32,
-    /// Maximum allowed value
-    pub max: u32,
+    /// Minimum and maximum allowed values.
+    /// This is empty if changes to the value are not supported.
+    pub allowed_range: Option<(u32, u32)>,
 }
 
 /// Custom fan curve
@@ -26,6 +25,15 @@ pub struct FanInfo {
 pub struct FanCurve {
     /// Fan curve points in the (temperature, speed) format
     pub points: Vec<(u32, u8)>,
+    /// Allowed value ranges.
+    /// Empty when changes to the fan curve are not supported.
+    pub allowed_ranges: Option<FanCurveRanges>,
+}
+
+/// Range of values allowed to be used within fan curve points
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FanCurveRanges {
     /// Temperature range allowed in curve points
     pub temperature_range: (u32, u32),
     /// Fan speed range allowed in curve points
