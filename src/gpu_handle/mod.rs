@@ -403,8 +403,8 @@ impl GpuHandle {
 
                 let file_path = self.sysfs_path.join("gpu_od/fan_ctrl").join(file);
                 println!("Writing new value {value} to file at {file_path:?}");
-                std::fs::write(&file_path, value.to_string())?;
-                std::fs::write(&file_path, "c")?;
+                std::fs::write(&file_path, format!("{value}\n"))?;
+                std::fs::write(&file_path, "c\n")?;
 
                 Ok(())
             }
