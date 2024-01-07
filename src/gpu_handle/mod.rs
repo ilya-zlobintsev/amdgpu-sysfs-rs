@@ -24,7 +24,7 @@ use std::{
     fmt::{self, Display},
     fs,
     io::Write,
-    path::{Path, PathBuf},
+    path::PathBuf,
     str::FromStr,
 };
 #[cfg(feature = "overdrive")]
@@ -320,7 +320,7 @@ impl GpuHandle {
     }
 
     fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
-        let file_path = Path::new("gpu_od/fan_ctrl").join(file);
+        let file_path = self.get_path().join("gpu_od/fan_ctrl").join(file);
         let data = self.read_file(file_path)?;
         let contents = FanCtrlContents::parse(&data, section_name)?;
 
