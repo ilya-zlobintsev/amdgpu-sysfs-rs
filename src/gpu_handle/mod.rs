@@ -3,12 +3,15 @@
 pub mod overdrive;
 #[macro_use]
 mod power_levels;
+pub mod fan_control;
 pub mod power_profile_mode;
 
 pub use power_levels::{PowerLevelKind, PowerLevels};
 
+use self::fan_control::{FanCurve, FanCurveRanges, FanInfo};
 use crate::{
     error::{Error, ErrorContext, ErrorKind},
+    gpu_handle::fan_control::FanCtrlContents,
     hw_mon::HwMon,
     sysfs::SysFS,
     Result,
@@ -20,6 +23,7 @@ use std::{
     collections::HashMap,
     fmt::{self, Display},
     fs,
+    io::Write,
     path::PathBuf,
     str::FromStr,
 };
@@ -103,15 +107,18 @@ impl GpuHandle {
     }
 
     fn get_link(&self, file_name: &str) -> Result<String> {
+        // Despite being labled NAVI10, newer generations use the same port device ids
         const NAVI10_UPSTREAM_PORT: &str = "0x1478\n";
         const NAVI10_DOWNSTREAM_PORT: &str = "0x1479\n";
 
         let mut sysfs_path = std::fs::canonicalize(self.get_path())?.join("../"); // pcie port
 
         for _ in 0..2 {
-            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else { break };
+            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else {
+                break;
+            };
 
-            if &did == NAVI10_UPSTREAM_PORT || &did == NAVI10_DOWNSTREAM_PORT {
+            if did == NAVI10_UPSTREAM_PORT || did == NAVI10_DOWNSTREAM_PORT {
                 sysfs_path.push("../");
             } else {
                 break;
@@ -120,7 +127,12 @@ impl GpuHandle {
 
         sysfs_path.pop();
 
-        Self { sysfs_path, hw_monitors: Vec::new(), uevent: HashMap::new() }.read_file(file_name)
+        Self {
+            sysfs_path,
+            hw_monitors: Vec::new(),
+            uevent: HashMap::new(),
+        }
+        .read_file(file_name)
     }
 
     /// Gets the current PCIe link speed.
@@ -274,8 +286,6 @@ impl GpuHandle {
     /// Writes and commits the given clocks table to `pp_od_clk_voltage`.
     #[cfg(feature = "overdrive")]
     pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<()> {
-        use std::io::Write;
-
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let mut file = File::create(path)?;
 
@@ -288,8 +298,6 @@ impl GpuHandle {
     /// Resets the clocks table to the default configuration.
     #[cfg(feature = "overdrive")]
     pub fn reset_clocks_table(&self) -> Result<()> {
-        use std::io::Write;
-
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let mut file = File::create(path)?;
         file.write_all(b"r\n")?;
@@ -309,6 +317,243 @@ impl GpuHandle {
     /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
     pub fn set_active_power_profile_mode(&self, i: u16) -> Result<()> {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
+    }
+
+    fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
+        let file_path = self.get_path().join("gpu_od/fan_ctrl").join(file);
+        let data = self.read_file(file_path)?;
+        let contents = FanCtrlContents::parse(&data, section_name)?;
+
+        let current = contents.contents.parse()?;
+
+        let allowed_range = match contents.od_range.get(range_name) {
+            Some((raw_min, raw_max)) => {
+                let min = raw_min.parse()?;
+                let max = raw_max.parse()?;
+                Some((min, max))
+            }
+            None => None,
+        };
+
+        Ok(FanInfo {
+            current,
+            allowed_range,
+        })
+    }
+
+    /// Gets the fan acoustic limit. Values are in RPM.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-limit-rpm-threshold>
+    pub fn get_fan_acoustic_limit(&self) -> Result<FanInfo> {
+        self.read_fan_info(
+            "acoustic_limit_rpm_threshold",
+            "OD_ACOUSTIC_LIMIT",
+            "ACOUSTIC_LIMIT",
+        )
+    }
+
+    /// Gets the fan acoustic target. Values are in RPM.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-target-rpm-threshold>
+    pub fn get_fan_acoustic_target(&self) -> Result<FanInfo> {
+        self.read_fan_info(
+            "acoustic_target_rpm_threshold",
+            "OD_ACOUSTIC_TARGET",
+            "ACOUSTIC_TARGET",
+        )
+    }
+
+    /// Gets the fan temperature target. Values are in degrees.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-target-temperature>
+    pub fn get_fan_target_temperature(&self) -> Result<FanInfo> {
+        self.read_fan_info(
+            "fan_target_temperature",
+            "FAN_TARGET_TEMPERATURE",
+            "TARGET_TEMPERATURE",
+        )
+    }
+
+    /// Gets the fan minimum PWM. Values are in percentages.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
+    pub fn get_fan_minimum_pwm(&self) -> Result<FanInfo> {
+        self.read_fan_info("fan_minimum_pwm", "FAN_MINIMUM_PWM", "MINIMUM_PWM")
+    }
+
+    fn set_fan_value(
+        &self,
+        file: &str,
+        value: u32,
+        section_name: &str,
+        range_name: &str,
+    ) -> Result<()> {
+        let info = self.read_fan_info(file, section_name, range_name)?;
+        match info.allowed_range {
+            Some((min, max)) => {
+                if !(min..=max).contains(&value) {
+                    return Err(Error::not_allowed(format!(
+                        "Value {value} is out of range, should be between {min} and {max}"
+                    )));
+                }
+
+                let file_path = self.sysfs_path.join("gpu_od/fan_ctrl").join(file);
+                std::fs::write(&file_path, format!("{value}\n"))?;
+                std::fs::write(&file_path, "c\n")?;
+
+                Ok(())
+            }
+            None => Err(Error::not_allowed(format!(
+                "Changes to {range_name} are not allowed"
+            ))),
+        }
+    }
+
+    /// Sets the fan acoustic limit. Value is in RPM.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-limit-rpm-threshold>
+    pub fn set_fan_acoustic_limit(&self, value: u32) -> Result<()> {
+        self.set_fan_value(
+            "acoustic_limit_rpm_threshold",
+            value,
+            "OD_ACOUSTIC_LIMIT",
+            "ACOUSTIC_LIMIT",
+        )
+    }
+
+    /// Sets the fan acoustic target. Value is in RPM.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-target-rpm-threshold>
+    pub fn set_fan_acoustic_target(&self, value: u32) -> Result<()> {
+        self.set_fan_value(
+            "acoustic_target_rpm_threshold",
+            value,
+            "OD_ACOUSTIC_TARGET",
+            "ACOUSTIC_TARGET",
+        )
+    }
+
+    /// Sets the fan temperature target. Value is in degrees.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-target-temperature>
+    pub fn set_fan_target_temperature(&self, value: u32) -> Result<()> {
+        self.set_fan_value(
+            "fan_target_temperature",
+            value,
+            "FAN_TARGET_TEMPERATURE",
+            "TARGET_TEMPERATURE",
+        )
+    }
+
+    /// Sets the fan minimum PWM. Value is a percentage.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
+    pub fn set_fan_minimum_pwm(&self, value: u32) -> Result<()> {
+        self.set_fan_value("fan_minimum_pwm", value, "FAN_MINIMUM_PWM", "MINIMUM_PWM")
+    }
+
+    fn reset_fan_value(&self, file: &str) -> Result<()> {
+        let file_path = self.sysfs_path.join("gpu_od/fan_ctrl").join(file);
+        let mut file = File::create(file_path)?;
+        writeln!(file, "r")?;
+        Ok(())
+    }
+
+    /// Resets the fan acoustic limit.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-limit-rpm-threshold>
+    pub fn reset_fan_acoustic_limit(&self) -> Result<()> {
+        self.reset_fan_value("acoustic_limit_rpm_threshold")
+    }
+
+    /// Resets the fan acoustic target.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-target-rpm-threshold>
+    pub fn reset_fan_acoustic_target(&self) -> Result<()> {
+        self.reset_fan_value("acoustic_target_rpm_threshold")
+    }
+
+    /// Resets the fan target temperature.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-target-temperature>
+    pub fn reset_fan_target_temperature(&self) -> Result<()> {
+        self.reset_fan_value("fan_target_temperature")
+    }
+
+    /// Resets the fan minimum pwm.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
+    pub fn reset_fan_minimum_pwm(&self) -> Result<()> {
+        self.reset_fan_value("fan_minimum_pwm")
+    }
+
+    /// Gets the fan curve.
+    /// Note: if no custom curve is used, all of the curve points may be set to 0.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_curve(&self) -> Result<FanCurve> {
+        let data = self.read_file("gpu_od/fan_ctrl/fan_curve")?;
+        let contents = FanCtrlContents::parse(&data, "OD_FAN_CURVE")?;
+        let points = contents
+            .contents
+            .lines()
+            .enumerate()
+            .map(|(i, line)| {
+                let mut split = line.split(' ');
+                split.next(); // Discard index
+
+                let raw_temp = split
+                    .next()
+                    .ok_or_else(|| Error::unexpected_eol("Temperature value", i))?;
+                let temp = raw_temp.trim_end_matches('C').parse()?;
+
+                let raw_speed = split
+                    .next()
+                    .ok_or_else(|| Error::unexpected_eol("Speed value", i))?;
+                let speed = raw_speed.trim_end_matches('%').parse()?;
+
+                Ok((temp, speed))
+            })
+            .collect::<Result<_>>()?;
+
+        let temp_range = contents.od_range.get("FAN_CURVE(hotspot temp)");
+        let speed_range = contents.od_range.get("FAN_CURVE(fan speed)");
+
+        let allowed_ranges = if let Some(((min_temp, max_temp), (min_speed, max_speed))) =
+            (temp_range).zip(speed_range)
+        {
+            let temperature_range = (
+                min_temp.trim_end_matches('C').parse()?,
+                max_temp.trim_end_matches('C').parse()?,
+            );
+            let speed_range = (
+                min_speed.trim_end_matches('%').parse()?,
+                max_speed.trim_end_matches('%').parse()?,
+            );
+            Some(FanCurveRanges {
+                temperature_range,
+                speed_range,
+            })
+        } else {
+            None
+        };
+
+        Ok(FanCurve {
+            points,
+            allowed_ranges,
+        })
     }
 }
 
