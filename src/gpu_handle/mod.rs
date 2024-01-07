@@ -377,7 +377,7 @@ impl GpuHandle {
         )
     }
 
-    /// Gets the fan minimum PWM. Values are in RPM.
+    /// Gets the fan minimum PWM. Values are in percentages.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
@@ -454,7 +454,7 @@ impl GpuHandle {
         )
     }
 
-    /// Sets the fan minimum PWM. Value is in RPM.
+    /// Sets the fan minimum PWM. Value is a percentage.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
