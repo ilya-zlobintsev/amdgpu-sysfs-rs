@@ -6,7 +6,7 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{io::Write, str::FromStr};
+use std::{cmp, io::Write, str::FromStr};
 
 /// Vega10 clocks table.
 #[derive(Debug, Clone)]
@@ -78,63 +78,85 @@ impl ClocksTable for Table {
     }
 
     fn set_max_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
-        self.sclk_levels
-            .last_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .clockspeed = clockspeed;
+        let len = self.sclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.sclk_levels[len - 1].clockspeed = clockspeed;
+        for clock_level in &mut self.sclk_levels[0..len - 1] {
+            clock_level.clockspeed = cmp::min(clock_level.clockspeed, clockspeed);
+        }
+
         Ok(())
     }
 
     fn set_min_sclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
-        self.sclk_levels
-            .first_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .clockspeed = clockspeed;
+        let len = self.sclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.sclk_levels[0].clockspeed = clockspeed;
+        for clock_level in &mut self.sclk_levels[1..len] {
+            clock_level.clockspeed = cmp::max(clock_level.clockspeed, clockspeed);
+        }
+
         Ok(())
     }
 
     fn set_max_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
-        self.mclk_levels
-            .last_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .clockspeed = clockspeed;
+        let len = self.mclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.mclk_levels[len - 1].clockspeed = clockspeed;
+        for clock_level in &mut self.mclk_levels[0..len - 1] {
+            clock_level.clockspeed = cmp::min(clock_level.clockspeed, clockspeed);
+        }
+
         Ok(())
     }
 
     fn set_min_mclk_unchecked(&mut self, clockspeed: i32) -> Result<()> {
-        self.mclk_levels
-            .first_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .clockspeed = clockspeed;
+        let len = self.mclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.mclk_levels[0].clockspeed = clockspeed;
+        for clock_level in &mut self.mclk_levels[1..len] {
+            clock_level.clockspeed = cmp::max(clock_level.clockspeed, clockspeed);
+        }
+
         Ok(())
     }
 
     fn set_max_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
-        self.sclk_levels
-            .last_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .voltage = voltage;
+        let len = self.sclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.sclk_levels[len - 1].voltage = voltage;
+        for clock_level in &mut self.sclk_levels[0..len - 1] {
+            clock_level.voltage = cmp::min(clock_level.voltage, voltage);
+        }
 
         Ok(())
     }
 
     fn set_min_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
-        self.sclk_levels
-            .first_mut()
-            .ok_or_else(|| {
-                Error::not_allowed("The GPU did not report any power levels".to_owned())
-            })?
-            .voltage = voltage;
+        let len = self.sclk_levels.len();
+        if len == 0 {
+            return Ok(());
+        }
+
+        self.sclk_levels[0].voltage = voltage;
+        for clock_level in &mut self.sclk_levels[1..len - 1] {
+            clock_level.voltage = cmp::max(clock_level.voltage, voltage);
+        }
 
         Ok(())
     }
@@ -308,7 +330,7 @@ mod tests {
 
         let expected_commands = arr_commands([
             "s 0 350 800",
-            "s 1 600 769",
+            "s 1 600 800",
             "s 2 900 912",
             "s 3 1145 1125",
             "s 4 1215 1150",
@@ -349,5 +371,59 @@ mod tests {
         assert_eq!(sclk_range, Some(Range::full(300, 2000)));
         assert_eq!(mclk_range, Some(Range::full(300, 2250)));
         assert_eq!(voltage_range, Some(Range::full(750, 1200)));
+    }
+
+    #[test]
+    fn undervolt_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_max_voltage(1100).unwrap();
+        assert!(table.sclk_levels.iter().all(|level| level.voltage <= 1100));
+    }
+
+    #[test]
+    fn underclock_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_max_sclk(1200).unwrap();
+        assert!(table
+            .sclk_levels
+            .iter()
+            .all(|level| level.clockspeed <= 1200));
+    }
+
+    #[test]
+    fn underclock_memory_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_max_mclk(900).unwrap();
+        assert!(table
+            .mclk_levels
+            .iter()
+            .all(|level| level.clockspeed <= 900));
+    }
+
+    #[test]
+    fn min_voltage_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_min_voltage(800).unwrap();
+        assert!(table.sclk_levels.iter().all(|level| level.voltage >= 800));
+    }
+
+    #[test]
+    fn min_clockspeed_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_min_sclk(750).unwrap();
+        assert!(table
+            .sclk_levels
+            .iter()
+            .all(|level| level.clockspeed >= 750));
+    }
+
+    #[test]
+    fn min_memory_clockspeed_normalize() {
+        let mut table = Table::from_str(TABLE_RX580).unwrap();
+        table.set_min_mclk(1100).unwrap();
+        assert!(table
+            .mclk_levels
+            .iter()
+            .all(|level| level.clockspeed >= 1100));
     }
 }
