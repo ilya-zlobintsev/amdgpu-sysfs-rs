@@ -21,6 +21,8 @@ pub struct Table {
     pub vddc_curve: Vec<ClocksLevel>,
     /// Voltage offset(in mV) applied on target voltage calculation.
     /// This is available for Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
+    ///
+    /// Note: editing this value directly does not check if it's in the allowed range!
     pub voltage_offset: Option<i32>,
     /// The allowed ranges for clockspeeds and voltages.
     pub od_range: OdRange,
@@ -158,6 +160,24 @@ impl ClocksTable for Table {
     }
 }
 
+impl Table {
+    /// Sets the voltage offset, checking if it's in range if the GPU provided one
+    ///
+    /// Note: RDNA2 GPUs use a voltage offset but do not provide a range
+    pub fn set_voltage_offset(&mut self, offset: i32) -> Result<()> {
+        if let Some(offset_range) = self.od_range.voltage_offset {
+            if let Some((min, max)) = offset_range.into_full() {
+                if !(min..=max).contains(&offset) {
+                    return Err(Error::not_allowed(format!("Provided voltage offset {offset} is out of range, should be between {min} and {max}")));
+                }
+            }
+        }
+
+        self.voltage_offset = Some(offset);
+        Ok(())
+    }
+}
+
 impl FromStr for Table {
     type Err = Error;
 
@@ -174,6 +194,7 @@ impl FromStr for Table {
         let mut curve_voltage_points = Vec::with_capacity(3);
 
         let mut voltage_offset = None;
+        let mut voltage_offset_range = None;
 
         let mut i = 1;
         for line in s
@@ -188,7 +209,6 @@ impl FromStr for Table {
                 "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
                 "OD_VDDGFX_OFFSET:" => current_section = Some(Section::VddGfxOffset),
                 line => match current_section {
-                    _ if line.starts_with("VDDGFX_OFFSET:") => continue,
                     // Voltage points will overwrite maximum clock info, with the last one taking priority
                     Some(Section::Range) if line.starts_with("VDDC_CURVE_SCLK") => {
                         let (range, _) = parse_range_line(line, i)?;
@@ -206,6 +226,7 @@ impl FromStr for Table {
                         match name {
                             "SCLK" => allowed_sclk_range = Some(range),
                             "MCLK" => allowed_mclk_range = Some(range),
+                            "VDDGFX_OFFSET" => voltage_offset_range = Some(range),
                             other => {
                                 return Err(ParseError {
                                     msg: format!("Unexpected range item: {other}"),
@@ -247,6 +268,7 @@ impl FromStr for Table {
             })?),
             curve_sclk_points,
             curve_voltage_points,
+            voltage_offset: voltage_offset_range,
         };
         let current_sclk_range = current_sclk_range.ok_or_else(|| ParseError {
             msg: "No current sclk range found".to_owned(),
@@ -319,6 +341,8 @@ pub struct OdRange {
     pub curve_sclk_points: Vec<Range>,
     /// Ranges available at specific levels.
     pub curve_voltage_points: Vec<Range>,
+    /// Allowed voltage offset range. Present on RDNA3+.
+    pub voltage_offset: Option<Range>,
 }
 
 #[derive(Debug)]
@@ -402,6 +426,7 @@ mod tests {
     const TABLE_6800: &str = include_table!("rx6800");
     const TABLE_7900XTX: &str = include_table!("rx7900xtx");
     const TABLE_7900XT: &str = include_table!("rx7900xt");
+    const TABLE_7800XT: &str = include_table!("rx7800xt");
 
     #[test]
     fn parse_5700xt_full() {
@@ -430,6 +455,7 @@ mod tests {
             mclk: Some(Range::full(625, 950)),
             curve_sclk_points,
             curve_voltage_points,
+            voltage_offset: None,
         };
         assert_eq!(table.od_range, od_range);
     }
@@ -532,6 +558,7 @@ mod tests {
                 mclk: None,
                 curve_sclk_points: Vec::new(),
                 curve_voltage_points: Vec::new(),
+                voltage_offset: None,
             },
         };
 
@@ -643,5 +670,18 @@ mod tests {
     fn parse_7900xt_full() {
         let table = Table::from_str(TABLE_7900XT).unwrap();
         assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_7800xt_full() {
+        let table = Table::from_str(TABLE_7800XT).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn set_7800xt_voltage() {
+        let mut table = Table::from_str(TABLE_7800XT).unwrap();
+        table.set_voltage_offset(-300).unwrap();
+        table.set_voltage_offset(100).unwrap_err();
     }
 }

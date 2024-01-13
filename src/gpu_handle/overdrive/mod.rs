@@ -268,6 +268,11 @@ impl Range {
             max: None,
         }
     }
+
+    /// Tries to convert the current range into a (min, max) pair.
+    pub fn into_full(self) -> Option<(i32, i32)> {
+        self.min.zip(self.max)
+    }
 }
 
 impl TryFrom<Range> for (i32, i32) {

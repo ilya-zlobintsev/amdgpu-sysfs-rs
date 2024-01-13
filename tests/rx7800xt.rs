@@ -21,7 +21,7 @@ test_with_handle! {
     },
     get_fan_minimum_pwm => {
         GpuHandle::get_fan_minimum_pwm,
-        Ok(FanInfo { current: 20, allowed_range: Some((20,  100)) })
+        Ok(FanInfo { current: 97, allowed_range: Some((20,  100)) })
     },
     get_fan_curve => {
         GpuHandle::get_fan_curve,

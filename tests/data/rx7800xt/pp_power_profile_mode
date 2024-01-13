@@ -18,7 +18,7 @@ PROFILE_INDEX(NAME) CLOCK_TYPE(NAME) FPS MinActiveFreqType MinActiveFreq Booster
                     0(       GFXCLK)       0       2    1000       1       0 3932160       0       0
                     1(         FCLK)       0       3       0       3       0 1310720   -6553   -6553
  6         CUSTOM :
-                    0(       GFXCLK)       0       2    1000       1       0 3932160       0       0
+                    0(       GFXCLK)       0       0    1200       4       0  655360   -3276  -65536
                     1(         FCLK)       0       3       0       3       0 1310720   -6553   -6553
  7      WINDOW_3D :
                     0(       GFXCLK)       0       0    1200       4     650 3932160   -3276  -65536

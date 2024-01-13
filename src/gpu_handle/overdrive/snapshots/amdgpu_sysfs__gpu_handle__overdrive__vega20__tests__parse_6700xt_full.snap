@@ -19,4 +19,5 @@ od_range:
     max: 1075
   curve_sclk_points: []
   curve_voltage_points: []
+  voltage_offset: ~
 
