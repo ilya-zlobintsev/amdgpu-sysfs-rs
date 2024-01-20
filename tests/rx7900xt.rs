@@ -1,3 +1,4 @@
+#![allow(clippy::redundant_closure_call)]
 mod sysfs;
 
 use amdgpu_sysfs::gpu_handle::{
@@ -25,6 +26,28 @@ test_with_handle! {
     },
     get_fan_curve => {
         GpuHandle::get_fan_curve,
-        Ok(FanCurve { points: vec![(0, 0); 5], allowed_ranges: Some(FanCurveRanges {temperature_range: 25..=100, speed_range: 15..=100 })})
+        Ok(FanCurve { points: vec![(0, 0); 5].into_boxed_slice(), allowed_ranges: Some(FanCurveRanges {temperature_range: 25..=100, speed_range: 15..=100 })})
+    },
+    set_invalid_fan_curve => {
+        |gpu_handle: &GpuHandle| {
+            let mut curve = gpu_handle.get_fan_curve().unwrap();
+            curve.points[0].0 = 5;
+            curve.points[0].1 = 0;
+            gpu_handle.set_fan_curve(&curve).unwrap_err().to_string()
+        },
+        "not allowed: Temperature value 5 is outside of the allowed range 25..=100",
+    },
+
+    set_valid_fan_curve => {
+        |gpu_handle: &GpuHandle| {
+            let mut curve = gpu_handle.get_fan_curve().unwrap();
+            curve.points[0] = (25, 15);
+            curve.points[1] = (40, 30);
+            curve.points[2] = (60, 65);
+            curve.points[3] = (70, 80);
+            curve.points[4] = (85, 100);
+            gpu_handle.set_fan_curve(&curve)
+        },
+        Ok(())
     }
 }

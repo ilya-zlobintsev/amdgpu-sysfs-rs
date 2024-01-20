@@ -24,7 +24,8 @@ pub struct FanInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FanCurve {
     /// Fan curve points in the (temperature, speed) format
-    pub points: Vec<(i32, u8)>,
+    /// This is a boxed slice as the number of curve points cannot be modified, only their values can be.
+    pub points: Box<[(i32, u8)]>,
     /// Allowed value ranges.
     /// Empty when changes to the fan curve are not supported.
     pub allowed_ranges: Option<FanCurveRanges>,
