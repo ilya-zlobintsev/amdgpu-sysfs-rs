@@ -6,7 +6,7 @@ use crate::{
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Write};
+use std::{collections::HashMap, fmt::Write, ops::RangeInclusive};
 
 /// Information about fan characteristics.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -24,7 +24,7 @@ pub struct FanInfo {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FanCurve {
     /// Fan curve points in the (temperature, speed) format
-    pub points: Vec<(u32, u8)>,
+    pub points: Vec<(i32, u8)>,
     /// Allowed value ranges.
     /// Empty when changes to the fan curve are not supported.
     pub allowed_ranges: Option<FanCurveRanges>,
@@ -32,12 +32,12 @@ pub struct FanCurve {
 
 /// Range of values allowed to be used within fan curve points
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FanCurveRanges {
     /// Temperature range allowed in curve points
-    pub temperature_range: (u32, u32),
+    pub temperature_range: RangeInclusive<i32>,
     /// Fan speed range allowed in curve points
-    pub speed_range: (u8, u8),
+    pub speed_range: RangeInclusive<u8>,
 }
 
 #[derive(PartialEq, Eq, Debug)]

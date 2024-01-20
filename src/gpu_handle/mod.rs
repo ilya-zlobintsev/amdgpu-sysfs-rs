@@ -499,10 +499,11 @@ impl GpuHandle {
         self.reset_fan_value("fan_minimum_pwm")
     }
 
-    /// Gets the fan curve.
+    /// Gets the PMFW (power management firmware) fan curve.
     /// Note: if no custom curve is used, all of the curve points may be set to 0.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
+    /// Older GPUs do not have a configurable fan curve in firmware, they need custom logic.
     pub fn get_fan_curve(&self) -> Result<FanCurve> {
         let data = self.read_file("gpu_od/fan_ctrl/fan_curve")?;
         let contents = FanCtrlContents::parse(&data, "OD_FAN_CURVE")?;
@@ -534,17 +535,15 @@ impl GpuHandle {
         let allowed_ranges = if let Some(((min_temp, max_temp), (min_speed, max_speed))) =
             (temp_range).zip(speed_range)
         {
-            let temperature_range = (
-                min_temp.trim_end_matches('C').parse()?,
-                max_temp.trim_end_matches('C').parse()?,
-            );
-            let speed_range = (
-                min_speed.trim_end_matches('%').parse()?,
-                max_speed.trim_end_matches('%').parse()?,
-            );
+            let min_temp: i32 = min_temp.trim_end_matches('C').parse()?;
+            let max_temp: i32 = max_temp.trim_end_matches('C').parse()?;
+
+            let min_speed: u8 = min_speed.trim_end_matches('%').parse()?;
+            let max_speed: u8 = max_speed.trim_end_matches('%').parse()?;
+
             Some(FanCurveRanges {
-                temperature_range,
-                speed_range,
+                temperature_range: min_temp..=max_temp,
+                speed_range: min_speed..=max_speed,
             })
         } else {
             None
@@ -554,6 +553,47 @@ impl GpuHandle {
             points,
             allowed_ranges,
         })
+    }
+
+    /// Sets and applies the PMFW fan curve.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-curve>
+    pub fn set_fan_curve(&self, new_curve: &FanCurve) -> Result<()> {
+        let current_curve = self.get_fan_curve()?;
+        let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
+            Error::not_allowed("Changes to the fan curve are not supported".to_owned())
+        })?;
+
+        let file_path = self.sysfs_path.join("gpu_od/fan_ctrl/fan_curve");
+
+        for (i, (temperature, speed)) in new_curve.points.iter().enumerate() {
+            if !allowed_ranges.temperature_range.contains(temperature) {
+                Err(Error::not_allowed(format!(
+                    "Temperature value {temperature} is outside of the allowed range {:?}",
+                    allowed_ranges.temperature_range
+                )))?;
+            }
+            if !allowed_ranges.speed_range.contains(speed) {
+                Err(Error::not_allowed(format!(
+                    "Speed value {speed} is outside of the allowed range {:?}",
+                    allowed_ranges.speed_range
+                )))?;
+            }
+
+            std::fs::write(&file_path, format!("{i} {temperature} {speed}\n"))?;
+        }
+        std::fs::write(&file_path, "c\n")?;
+
+        Ok(())
+    }
+
+    /// Resets the PMFW fan curve.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-curve>
+    pub fn reset_fan_curve(&self) -> Result<()> {
+        self.reset_fan_value("fan_curve")
     }
 }
 

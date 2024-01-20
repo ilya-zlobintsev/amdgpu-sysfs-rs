@@ -25,6 +25,6 @@ test_with_handle! {
     },
     get_fan_curve => {
         GpuHandle::get_fan_curve,
-        Ok(FanCurve { points: vec![(0, 0); 5], allowed_ranges: Some(FanCurveRanges {temperature_range: (25, 100), speed_range: (15, 100) })})
+        Ok(FanCurve { points: vec![(0, 0); 5], allowed_ranges: Some(FanCurveRanges {temperature_range: 25..=100, speed_range: 15..=100 })})
     }
 }
