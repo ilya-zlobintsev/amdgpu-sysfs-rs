@@ -3,12 +3,88 @@ source: src/gpu_handle/power_profile_mode.rs
 expression: table
 ---
 modes:
-  0: BOOTUP_DEFAULT
-  1: 3D_FULL_SCREEN
-  2: POWER_SAVING
-  3: VIDEO
-  4: VR
-  5: COMPUTE
-  6: CUSTOM
+  0:
+    name: BOOTUP_DEFAULT
+    values:
+      - clock_type: ~
+        values:
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+  1:
+    name: 3D_FULL_SCREEN
+    values:
+      - clock_type: ~
+        values:
+          - 0
+          - 100
+          - 30
+          - 10
+          - 60
+          - 25
+  2:
+    name: POWER_SAVING
+    values:
+      - clock_type: ~
+        values:
+          - 10
+          - 0
+          - 30
+          - ~
+          - ~
+          - ~
+  3:
+    name: VIDEO
+    values:
+      - clock_type: ~
+        values:
+          - ~
+          - ~
+          - ~
+          - 10
+          - 16
+          - 31
+  4:
+    name: VR
+    values:
+      - clock_type: ~
+        values:
+          - 0
+          - 11
+          - 50
+          - 0
+          - 100
+          - 10
+  5:
+    name: COMPUTE
+    values:
+      - clock_type: ~
+        values:
+          - 0
+          - 5
+          - 30
+          - ~
+          - ~
+          - ~
+  6:
+    name: CUSTOM
+    values:
+      - clock_type: ~
+        values:
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+          - ~
+value_names:
+  - SCLK_UP_HYST
+  - SCLK_DOWN_HYST
+  - SCLK_ACTIVE_LEVEL
+  - MCLK_UP_HYST
+  - MCLK_DOWN_HYST
+  - MCLK_ACTIVE_LEVEL
 active: 1
-
