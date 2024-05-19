@@ -46,7 +46,7 @@ impl PowerProfileModesTable {
 
         match start {
             "NUM" => Self::parse_flat(s),
-            "PROFILE_INDEX(NAME)" => todo!(),
+            "PROFILE_INDEX(NAME)" => Self::parse_nested(s),
             _ if start.parse::<u16>().is_ok() => Self::parse_basic(s),
             _ => Err(Error::basic_parse_error(
                 "Could not determine the type of power profile mode table",
@@ -65,8 +65,18 @@ impl PowerProfileModesTable {
             .next()
             .ok_or_else(|| Error::unexpected_eol("Info header", 1))?;
         let mut header_split = header_line.split_whitespace();
-        assert_eq!(Some("NUM"), header_split.next());
-        assert_eq!(Some("MODE_NAME"), header_split.next());
+
+        if header_split.next() != Some("NUM") {
+            return Err(
+                ErrorKind::Unsupported("Expected header to start with 'NUM'".to_owned()).into(),
+            );
+        }
+        if header_split.next() != Some("MODE_NAME") {
+            return Err(ErrorKind::Unsupported(
+                "Expected header to contain 'MODE_NAME'".to_owned(),
+            )
+            .into());
+        }
 
         let value_names: Vec<String> = header_split.map(str::to_owned).collect();
 
@@ -118,6 +128,116 @@ impl PowerProfileModesTable {
                         clock_type: None,
                         values,
                     }],
+                };
+                modes.insert(num, power_profile);
+            }
+        }
+
+        Ok(Self {
+            modes,
+            value_names,
+            active: active.ok_or_else(|| Error::basic_parse_error("No active level found"))?,
+        })
+    }
+
+    /// Parse the format used by RDNA and higher
+    fn parse_nested(s: &str) -> Result<Self> {
+        let mut modes = BTreeMap::new();
+        let mut active = None;
+
+        let mut lines = s.lines();
+
+        let header_line = lines
+            .next()
+            .ok_or_else(|| Error::unexpected_eol("Info header", 1))?;
+        let mut header_split = header_line.split_whitespace();
+
+        if header_split.next() != Some("PROFILE_INDEX(NAME)") {
+            return Err(ErrorKind::Unsupported(
+                "Expected header to start with 'PROFILE_INDEX(NAME)'".to_owned(),
+            )
+            .into());
+        }
+        if header_split.next() != Some("CLOCK_TYPE(NAME)") {
+            return Err(ErrorKind::Unsupported(
+                "Expected header to contain 'CLOCK_TYPE(NAME)'".to_owned(),
+            )
+            .into());
+        }
+
+        let value_names: Vec<String> = header_split.map(str::to_owned).collect();
+
+        let mut lines = lines.map(str::trim).enumerate().peekable();
+        while let Some((line, row)) = lines.next() {
+            if row.contains('(') {
+                return Err(ErrorKind::ParseError {
+                    msg: format!("Unexpected mode heuristics line '{row}'"),
+                    line: line + 1,
+                }
+                .into());
+            }
+
+            let mut split = row.split_whitespace();
+            if let Some(num) = split.next().and_then(|part| part.parse::<u16>().ok()) {
+                let name_part = split
+                    .next()
+                    .ok_or_else(|| Error::unexpected_eol("No name after mode number", line + 1))?
+                    .trim_end_matches(':');
+
+                let name = if let Some(name) = name_part.strip_suffix('*') {
+                    active = Some(num);
+                    name.trim()
+                } else {
+                    name_part
+                };
+
+                let mut values = Vec::new();
+
+                while lines
+                    .peek()
+                    .is_some_and(|(_, row)| row.contains(|c| c == '(' || c == ')'))
+                {
+                    let (line, clock_type_line) = lines.next().unwrap();
+
+                    let name_start = clock_type_line
+                        .char_indices()
+                        .position(|(_, c)| c == '(')
+                        .ok_or_else(|| Error::unexpected_eol('(', line + 1))?;
+
+                    let name_end = clock_type_line
+                        .char_indices()
+                        .position(|(_, c)| c == ')')
+                        .ok_or_else(|| Error::unexpected_eol(')', line + 1))?;
+
+                    let clock_type = clock_type_line[name_start + 1..name_end].trim();
+
+                    let clock_type_values = clock_type_line[name_end + 1..]
+                        .split_whitespace()
+                        .map(str::trim)
+                        .map(|value| {
+                            if value == "-" {
+                                Ok(None)
+                            } else {
+                                let parsed = value.parse().map_err(|_| {
+                                    Error::from(ErrorKind::ParseError {
+                                        msg: format!("Expected an integer, got '{value}'"),
+                                        line: line + 1,
+                                    })
+                                })?;
+                                Ok(Some(parsed))
+                            }
+                        })
+                        .collect::<Result<Vec<Option<i32>>>>()?;
+
+                    values.push(PowerProfileValues {
+                        clock_type: Some(clock_type.to_owned()),
+                        values: clock_type_values,
+                    })
+                }
+
+                let power_profile = PowerProfile {
+                    name: name.to_owned(),
+                    values,
                 };
                 modes.insert(num, power_profile);
             }
