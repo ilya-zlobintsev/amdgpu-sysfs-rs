@@ -285,14 +285,13 @@ impl GpuHandle {
 
     /// Writes and commits the given clocks table to `pp_od_clk_voltage`.
     #[cfg(feature = "overdrive")]
-    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<()> {
+    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<CommitHandle> {
         let path = self.sysfs_path.join("pp_od_clk_voltage");
-        let mut file = File::create(path)?;
+        let mut file = File::create(&path)?;
 
         table.write_commands(&mut file)?;
-        file.write_all(b"c\n")?;
 
-        Ok(())
+        Ok(CommitHandle::new(path))
     }
 
     /// Resets the clocks table to the default configuration.
@@ -419,7 +418,7 @@ impl GpuHandle {
         value: u32,
         section_name: &str,
         range_name: &str,
-    ) -> Result<()> {
+    ) -> Result<CommitHandle> {
         let info = self.read_fan_info(file, section_name, range_name)?;
         match info.allowed_range {
             Some((min, max)) => {
@@ -431,9 +430,8 @@ impl GpuHandle {
 
                 let file_path = self.sysfs_path.join("gpu_od/fan_ctrl").join(file);
                 std::fs::write(&file_path, format!("{value}\n"))?;
-                std::fs::write(&file_path, "c\n")?;
 
-                Ok(())
+                Ok(CommitHandle::new(file_path))
             }
             None => Err(Error::not_allowed(format!(
                 "Changes to {range_name} are not allowed"
@@ -445,7 +443,7 @@ impl GpuHandle {
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-limit-rpm-threshold>
-    pub fn set_fan_acoustic_limit(&self, value: u32) -> Result<()> {
+    pub fn set_fan_acoustic_limit(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value(
             "acoustic_limit_rpm_threshold",
             value,
@@ -458,7 +456,7 @@ impl GpuHandle {
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#acoustic-target-rpm-threshold>
-    pub fn set_fan_acoustic_target(&self, value: u32) -> Result<()> {
+    pub fn set_fan_acoustic_target(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value(
             "acoustic_target_rpm_threshold",
             value,
@@ -471,7 +469,7 @@ impl GpuHandle {
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-target-temperature>
-    pub fn set_fan_target_temperature(&self, value: u32) -> Result<()> {
+    pub fn set_fan_target_temperature(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value(
             "fan_target_temperature",
             value,
@@ -484,7 +482,7 @@ impl GpuHandle {
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
-    pub fn set_fan_minimum_pwm(&self, value: u32) -> Result<()> {
+    pub fn set_fan_minimum_pwm(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value("fan_minimum_pwm", value, "FAN_MINIMUM_PWM", "MINIMUM_PWM")
     }
 
@@ -587,7 +585,7 @@ impl GpuHandle {
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-curve>
-    pub fn set_fan_curve(&self, new_curve: &FanCurve) -> Result<()> {
+    pub fn set_fan_curve(&self, new_curve: &FanCurve) -> Result<CommitHandle> {
         let current_curve = self.get_fan_curve()?;
         let allowed_ranges = current_curve.allowed_ranges.ok_or_else(|| {
             Error::not_allowed("Changes to the fan curve are not supported".to_owned())
@@ -611,9 +609,8 @@ impl GpuHandle {
 
             std::fs::write(&file_path, format!("{i} {temperature} {speed}\n"))?;
         }
-        std::fs::write(&file_path, "c\n")?;
 
-        Ok(())
+        Ok(CommitHandle::new(file_path))
     }
 
     /// Resets the PMFW fan curve.
@@ -685,4 +682,27 @@ impl fmt::Display for PerformanceLevel {
 /// For some reason files sometimes have random null bytes around lines
 fn trim_sysfs_line(line: &str) -> &str {
     line.trim_matches(char::from(0)).trim()
+}
+
+/// Handle for committing values which were previusly written
+#[must_use]
+#[derive(Debug)]
+pub struct CommitHandle {
+    file_path: PathBuf,
+}
+
+impl CommitHandle {
+    pub(crate) fn new(file_path: PathBuf) -> Self {
+        Self { file_path }
+    }
+
+    /// Commit the previously written values
+    pub fn commit(self) -> Result<()> {
+        std::fs::write(&self.file_path, "c\n").with_context(|| {
+            format!(
+                "Could not commit values to {:?}",
+                self.file_path.file_name().unwrap()
+            )
+        })
+    }
 }

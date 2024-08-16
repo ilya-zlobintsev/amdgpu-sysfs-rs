@@ -46,7 +46,8 @@ test_with_handle! {
             curve.points[2] = (60, 65);
             curve.points[3] = (70, 80);
             curve.points[4] = (85, 100);
-            gpu_handle.set_fan_curve(&curve)
+            let handle = gpu_handle.set_fan_curve(&curve)?;
+            handle.commit()
         },
         Ok(())
     }
