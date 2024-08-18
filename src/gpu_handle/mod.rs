@@ -114,7 +114,7 @@ impl GpuHandle {
         let mut sysfs_path = std::fs::canonicalize(self.get_path())?.join("../"); // pcie port
 
         for _ in 0..2 {
-            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else {
+            let Ok(did) = std::fs::read_to_string(sysfs_path.join("device")) else {
                 break;
             };
 
@@ -317,6 +317,34 @@ impl GpuHandle {
     pub fn set_active_power_profile_mode(&self, i: u16) -> Result<()> {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
     }
+
+    /*/// Sets a custom power profile mode. You can get the available modes, and the list of heuristic names with [`get_power_profile_modes`].
+    /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
+    pub fn set_custom_power_profile_mode(&self, heuristics: Vec<Option<i32>>) -> Result<()> {
+        let table = self.get_power_profile_modes()?;
+        let (index, custom_profile) = table
+            .modes
+            .iter()
+            .find(|(_, profile)| profile.name == "CUSTOM")
+            .ok_or_else(|| {
+                ErrorKind::NotAllowed("Could not find a custom power profile".to_owned())
+            })?;
+
+        if custom_profile.components.len() == 1 {
+            let mut values_command = format!("{index}");
+            for heuristic in heuristics {
+                match heuristic {
+                    Some(value) => write!(values_command, " {value}").unwrap(),
+                    None => write!(values_command, " -").unwrap(),
+                }
+            }
+
+            values_command.push('\n');
+            self.write_file("pp_power_profile_mode", values_command)
+        } else {
+            todo!();
+        }
+    }*/
 
     fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
         let file_path = self.get_path().join("gpu_od/fan_ctrl").join(file);
