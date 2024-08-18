@@ -5,7 +5,7 @@ expression: table
 modes:
   0:
     name: BOOTUP_DEFAULT
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -28,7 +28,7 @@ modes:
           - -6553
   1:
     name: 3D_FULL_SCREEN
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -51,7 +51,7 @@ modes:
           - -6553
   2:
     name: POWER_SAVING
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -74,7 +74,7 @@ modes:
           - -6553
   3:
     name: VIDEO
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -97,7 +97,7 @@ modes:
           - -6553
   4:
     name: VR
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -120,7 +120,7 @@ modes:
           - -6553
   5:
     name: COMPUTE
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -143,7 +143,7 @@ modes:
           - -6553
   6:
     name: CUSTOM
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0
@@ -166,7 +166,7 @@ modes:
           - -6553
   7:
     name: WINDOW_3D
-    values:
+    components:
       - clock_type: GFXCLK
         values:
           - 0

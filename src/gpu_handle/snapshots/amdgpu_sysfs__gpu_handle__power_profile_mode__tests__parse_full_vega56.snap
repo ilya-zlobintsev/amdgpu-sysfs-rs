@@ -5,7 +5,7 @@ expression: table
 modes:
   0:
     name: BOOTUP_DEFAULT
-    values:
+    components:
       - clock_type: ~
         values:
           - 70
@@ -14,7 +14,7 @@ modes:
           - 0
   1:
     name: 3D_FULL_SCREEN
-    values:
+    components:
       - clock_type: ~
         values:
           - 70
@@ -23,7 +23,7 @@ modes:
           - 3
   2:
     name: POWER_SAVING
-    values:
+    components:
       - clock_type: ~
         values:
           - 90
@@ -32,7 +32,7 @@ modes:
           - 0
   3:
     name: VIDEO
-    values:
+    components:
       - clock_type: ~
         values:
           - 70
@@ -41,7 +41,7 @@ modes:
           - 0
   4:
     name: VR
-    values:
+    components:
       - clock_type: ~
         values:
           - 70
@@ -50,7 +50,7 @@ modes:
           - 0
   5:
     name: COMPUTE
-    values:
+    components:
       - clock_type: ~
         values:
           - 30
@@ -59,7 +59,7 @@ modes:
           - 6
   6:
     name: CUSTOM
-    values:
+    components:
       - clock_type: ~
         values:
           - 0

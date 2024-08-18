@@ -5,18 +5,18 @@ expression: table
 modes:
   1:
     name: 3D_FULL_SCREEN
-    values: []
+    components: []
   3:
     name: VIDEO
-    values: []
+    components: []
   4:
     name: VR
-    values: []
+    components: []
   5:
     name: COMPUTE
-    values: []
+    components: []
   6:
     name: CUSTOM
-    values: []
+    components: []
 value_names: []
 active: 3
