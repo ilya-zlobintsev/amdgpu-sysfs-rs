@@ -26,12 +26,15 @@ pub struct PowerProfileModesTable {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerProfile {
     pub name: String,
-    pub values: Vec<PowerProfileValues>,
+    /// On RDNA and newer, each profile has multiple components for different clock types.
+    /// Older generations have only one set of values.
+    pub components: Vec<PowerProfileComponent>,
 }
 
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct PowerProfileValues {
+pub struct PowerProfileComponent {
+    /// Filled on RDNA and newer
     pub clock_type: Option<String>,
     pub values: Vec<Option<i32>>,
 }
@@ -124,7 +127,7 @@ impl PowerProfileModesTable {
 
                 let power_profile = PowerProfile {
                     name: name.to_owned(),
-                    values: vec![PowerProfileValues {
+                    components: vec![PowerProfileComponent {
                         clock_type: None,
                         values,
                     }],
@@ -191,7 +194,7 @@ impl PowerProfileModesTable {
                     name_part
                 };
 
-                let mut values = Vec::new();
+                let mut components = Vec::new();
 
                 while lines
                     .peek()
@@ -229,7 +232,7 @@ impl PowerProfileModesTable {
                         })
                         .collect::<Result<Vec<Option<i32>>>>()?;
 
-                    values.push(PowerProfileValues {
+                    components.push(PowerProfileComponent {
                         clock_type: Some(clock_type.to_owned()),
                         values: clock_type_values,
                     })
@@ -237,7 +240,7 @@ impl PowerProfileModesTable {
 
                 let power_profile = PowerProfile {
                     name: name.to_owned(),
-                    values,
+                    components,
                 };
                 modes.insert(num, power_profile);
             }
@@ -273,7 +276,7 @@ impl PowerProfileModesTable {
                     num,
                     PowerProfile {
                         name: name.to_owned(),
-                        values: vec![],
+                        components: vec![],
                     },
                 );
             }

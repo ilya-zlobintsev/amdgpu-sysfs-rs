@@ -114,7 +114,7 @@ impl GpuHandle {
         let mut sysfs_path = std::fs::canonicalize(self.get_path())?.join("../"); // pcie port
 
         for _ in 0..2 {
-            let Ok(did) = std::fs::read_to_string(&sysfs_path.join("device")) else {
+            let Ok(did) = std::fs::read_to_string(sysfs_path.join("device")) else {
                 break;
             };
 
@@ -330,7 +330,7 @@ impl GpuHandle {
                 ErrorKind::NotAllowed("Could not find a custom power profile".to_owned())
             })?;
 
-        if custom_profile.values.len() == 1 {
+        if custom_profile.components.len() == 1 {
             let mut values_command = format!("{index}");
             for heuristic in heuristics {
                 match heuristic {
