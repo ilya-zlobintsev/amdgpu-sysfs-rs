@@ -21,7 +21,7 @@ use power_profile_mode::PowerProfileModesTable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fmt::{self, Display, Write as _},
+    fmt::{self, Display},
     fs,
     io::Write,
     path::PathBuf,
@@ -318,7 +318,7 @@ impl GpuHandle {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
     }
 
-    /// Sets a custom power profile mode. You can get the available modes, and the list of heuristic names with [`get_power_profile_modes`].
+    /*/// Sets a custom power profile mode. You can get the available modes, and the list of heuristic names with [`get_power_profile_modes`].
     /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
     pub fn set_custom_power_profile_mode(&self, heuristics: Vec<Option<i32>>) -> Result<()> {
         let table = self.get_power_profile_modes()?;
@@ -344,7 +344,7 @@ impl GpuHandle {
         } else {
             todo!();
         }
-    }
+    }*/
 
     fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
         let file_path = self.get_path().join("gpu_od/fan_ctrl").join(file);
