@@ -32,7 +32,7 @@ pub struct PowerProfile {
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize, Default, Clone))]
 pub struct PowerProfileComponent {
     /// Filled on RDNA and newer
     pub clock_type: Option<String>,
@@ -287,6 +287,13 @@ impl PowerProfileModesTable {
             value_names: vec![],
             active: active.ok_or_else(|| Error::basic_parse_error("No active level found"))?,
         })
+    }
+}
+
+impl PowerProfile {
+    /// If this is the custom profile (checked by name)
+    pub fn is_custom(&self) -> bool {
+        self.name.eq_ignore_ascii_case("CUSTOM")
     }
 }
 

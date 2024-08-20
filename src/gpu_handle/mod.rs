@@ -21,7 +21,7 @@ use power_profile_mode::PowerProfileModesTable;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    fmt::{self, Display},
+    fmt::{self, Display, Write as _},
     fs,
     io::Write,
     path::PathBuf,
@@ -318,21 +318,33 @@ impl GpuHandle {
         self.write_file("pp_power_profile_mode", format!("{i}\n"))
     }
 
-    /*/// Sets a custom power profile mode. You can get the available modes, and the list of heuristic names with [`get_power_profile_modes`].
+    /// Sets a custom power profile mode. You can get the available modes, and the list of heuristic names with [`get_power_profile_modes`].
     /// Requires the performance level to be set to "manual" first using [`set_power_force_performance_level`]
-    pub fn set_custom_power_profile_mode(&self, heuristics: Vec<Option<i32>>) -> Result<()> {
+    pub fn set_custom_power_profile_mode_heuristics(
+        &self,
+        components: &[Vec<Option<i32>>],
+    ) -> Result<()> {
         let table = self.get_power_profile_modes()?;
         let (index, custom_profile) = table
             .modes
             .iter()
-            .find(|(_, profile)| profile.name == "CUSTOM")
+            .find(|(_, profile)| profile.is_custom())
             .ok_or_else(|| {
                 ErrorKind::NotAllowed("Could not find a custom power profile".to_owned())
             })?;
 
+        if custom_profile.components.len() != components.len() {
+            return Err(ErrorKind::NotAllowed(format!(
+                "Expected {} power profile components, got {}",
+                custom_profile.components.len(),
+                components.len()
+            ))
+            .into());
+        }
+
         if custom_profile.components.len() == 1 {
             let mut values_command = format!("{index}");
-            for heuristic in heuristics {
+            for heuristic in &components[0] {
                 match heuristic {
                     Some(value) => write!(values_command, " {value}").unwrap(),
                     None => write!(values_command, " -").unwrap(),
@@ -344,7 +356,7 @@ impl GpuHandle {
         } else {
             todo!();
         }
-    }*/
+    }
 
     fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
         let file_path = self.get_path().join("gpu_od/fan_ctrl").join(file);
