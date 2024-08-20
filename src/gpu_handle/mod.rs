@@ -363,7 +363,6 @@ impl GpuHandle {
                     }
                 }
                 values_command.push('\n');
-                println!("Writing command {values_command}");
 
                 self.write_file("pp_power_profile_mode", values_command)?;
             }
