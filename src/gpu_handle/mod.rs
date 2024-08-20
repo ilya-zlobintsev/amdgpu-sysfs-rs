@@ -325,7 +325,7 @@ impl GpuHandle {
         components: &[Vec<Option<i32>>],
     ) -> Result<()> {
         let table = self.get_power_profile_modes()?;
-        let (index, custom_profile) = table
+        let (index, current_custom_profile) = table
             .modes
             .iter()
             .find(|(_, profile)| profile.is_custom())
@@ -333,16 +333,16 @@ impl GpuHandle {
                 ErrorKind::NotAllowed("Could not find a custom power profile".to_owned())
             })?;
 
-        if custom_profile.components.len() != components.len() {
+        if current_custom_profile.components.len() != components.len() {
             return Err(ErrorKind::NotAllowed(format!(
                 "Expected {} power profile components, got {}",
-                custom_profile.components.len(),
+                current_custom_profile.components.len(),
                 components.len()
             ))
             .into());
         }
 
-        if custom_profile.components.len() == 1 {
+        if current_custom_profile.components.len() == 1 {
             let mut values_command = format!("{index}");
             for heuristic in &components[0] {
                 match heuristic {
@@ -354,9 +354,9 @@ impl GpuHandle {
             values_command.push('\n');
             self.write_file("pp_power_profile_mode", values_command)
         } else {
-            for (component_index, component) in custom_profile.components.iter().enumerate() {
+            for (component_index, heuristics) in components.iter().enumerate() {
                 let mut values_command = format!("{index} {component_index}");
-                for heuristic in &component.values {
+                for heuristic in heuristics {
                     match heuristic {
                         Some(value) => write!(values_command, " {value}").unwrap(),
                         None => write!(values_command, " -").unwrap(),
