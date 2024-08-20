@@ -342,20 +342,34 @@ impl GpuHandle {
             .into());
         }
 
-        for component in &custom_profile.components {
+        if custom_profile.components.len() == 1 {
             let mut values_command = format!("{index}");
-            for heuristic in &component.values {
+            for heuristic in &components[0] {
                 match heuristic {
                     Some(value) => write!(values_command, " {value}").unwrap(),
                     None => write!(values_command, " -").unwrap(),
                 }
             }
+
             values_command.push('\n');
+            self.write_file("pp_power_profile_mode", values_command)
+        } else {
+            for (component_index, component) in custom_profile.components.iter().enumerate() {
+                let mut values_command = format!("{index} {component_index}");
+                for heuristic in &component.values {
+                    match heuristic {
+                        Some(value) => write!(values_command, " {value}").unwrap(),
+                        None => write!(values_command, " -").unwrap(),
+                    }
+                }
+                values_command.push('\n');
+                println!("Writing command {values_command}");
 
-            self.write_file("pp_power_profile_mode", values_command)?;
+                self.write_file("pp_power_profile_mode", values_command)?;
+            }
+
+            todo!();
         }
-
-        Ok(())
     }
 
     fn read_fan_info(&self, file: &str, section_name: &str, range_name: &str) -> Result<FanInfo> {
