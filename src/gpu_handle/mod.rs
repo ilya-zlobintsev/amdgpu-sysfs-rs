@@ -367,7 +367,7 @@ impl GpuHandle {
                 self.write_file("pp_power_profile_mode", values_command)?;
             }
 
-            todo!();
+            Ok(())
         }
     }
 
