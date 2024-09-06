@@ -198,7 +198,7 @@ impl PowerProfileModesTable {
 
                 while lines
                     .peek()
-                    .is_some_and(|(_, row)| row.contains(|c| c == '(' || c == ')'))
+                    .is_some_and(|(_, row)| row.contains(['(', ')']))
                 {
                     let (line, clock_type_line) = lines.next().unwrap();
 

@@ -1,5 +1,8 @@
 //! The format used by Vega20 and newer GPUs.
-use super::{parse_line_item, parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
+use super::{
+    parse_line_item, parse_range_line, push_level_line, ClocksLevel, ClocksTable, ClocksTableGen,
+    Range,
+};
 use crate::{
     error::{Error, ErrorContext, ErrorKind::ParseError},
     gpu_handle::trim_sysfs_line,
@@ -29,15 +32,50 @@ pub struct Table {
 }
 
 impl ClocksTable for Table {
-    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
-        let clockspeeds = [
+    fn write_commands<W: Write>(
+        &self,
+        writer: &mut W,
+        previous_table: &ClocksTableGen,
+    ) -> Result<()> {
+        let ClocksTableGen::Vega20(previous_table) = previous_table else {
+            return Err(Error::not_allowed(
+                "Mismatched clocks table format".to_owned(),
+            ));
+        };
+
+        let mut clocks_commands = Vec::with_capacity(4);
+
+        // If the new minimum clockspeed is higher than the previous maximum clockspeed,
+        // we need to first write the new maximum value to avoid an error on RDNA3
+        if let (Some(current_sclk_min), Some(old_sclk_max)) = (
+            self.current_sclk_range.min,
+            previous_table.current_sclk_range.max,
+        ) {
+            if current_sclk_min > old_sclk_max {
+                clocks_commands.push((self.current_sclk_range.max, 's', 1));
+            }
+        }
+
+        clocks_commands.extend([
             (self.current_sclk_range.min, 's', 0),
             (self.current_sclk_range.max, 's', 1),
+        ]);
+
+        if let (Some(current_mclk_min), Some(old_mclk_max)) = (
+            self.current_mclk_range.min,
+            previous_table.current_mclk_range.max,
+        ) {
+            if current_mclk_min > old_mclk_max {
+                clocks_commands.push((self.current_mclk_range.max, 'm', 1));
+            }
+        }
+
+        clocks_commands.extend([
             (self.current_mclk_range.min, 'm', 0),
             (self.current_mclk_range.max, 'm', 1),
-        ];
+        ]);
 
-        for (maybe_clockspeed, symbol, index) in clockspeeds {
+        for (maybe_clockspeed, symbol, index) in clocks_commands {
             if let Some(clockspeed) = maybe_clockspeed {
                 let line = clockspeed_line(symbol, index, clockspeed);
                 writer
@@ -496,7 +534,9 @@ mod tests {
         table.set_max_voltage(1200).unwrap();
 
         let mut buf = Vec::new();
-        table.write_commands(&mut buf).unwrap();
+        table
+            .write_commands(&mut buf, &table.clone().into())
+            .unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands = arr_commands([
@@ -536,7 +576,7 @@ mod tests {
         table.set_max_sclk(1900).unwrap();
         table.set_max_voltage(1140).unwrap();
 
-        let commands = table.get_commands().unwrap();
+        let commands = table.get_commands(&table.clone().into()).unwrap();
         let expected_commands = vec![
             "s 1 1900",
             "vc 0 500 710",
@@ -563,7 +603,9 @@ mod tests {
         };
 
         let mut buf = Vec::new();
-        table.write_commands(&mut buf).unwrap();
+        table
+            .write_commands(&mut buf, &table.clone().into())
+            .unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands =
@@ -581,7 +623,7 @@ mod tests {
     #[test]
     fn write_commands_6900xt_default() {
         let table = Table::from_str(TABLE_6900XT).unwrap();
-        let commands = table.get_commands().unwrap();
+        let commands = table.get_commands(&table.clone().into()).unwrap();
 
         assert_yaml_snapshot!(commands);
     }
@@ -596,7 +638,7 @@ mod tests {
         table.set_max_mclk(900).unwrap();
         assert!(table.set_min_voltage(1000).is_err());
 
-        let commands = table.get_commands().unwrap();
+        let commands = table.get_commands(&table.clone().into()).unwrap();
         assert_yaml_snapshot!(commands);
     }
 
@@ -637,7 +679,24 @@ mod tests {
         table.set_max_sclk(2800).unwrap();
         table.set_max_mclk(1075).unwrap();
 
-        let commands = table.get_commands().unwrap();
+        let commands = table.get_commands(&table.clone().into()).unwrap();
+        assert_yaml_snapshot!(commands);
+    }
+
+    #[test]
+    fn write_new_min_over_old_max_7900xt() {
+        let original_table = Table::from_str(TABLE_7900XT).unwrap();
+
+        let mut new_table = original_table.clone();
+        new_table.clear();
+
+        new_table.set_min_mclk(1350).unwrap();
+        new_table.set_max_mclk(1350).unwrap();
+
+        new_table.set_min_sclk(3000).unwrap();
+        new_table.set_max_sclk(3000).unwrap();
+
+        let commands = new_table.get_commands(&original_table.into()).unwrap();
         assert_yaml_snapshot!(commands);
     }
 
@@ -657,7 +716,7 @@ mod tests {
         table.set_max_mclk(1050).unwrap();
         table.voltage_offset = Some(10);
 
-        assert_yaml_snapshot!(table.get_commands().unwrap());
+        assert_yaml_snapshot!(table.get_commands(&table.clone().into()).unwrap());
     }
 
     #[test]

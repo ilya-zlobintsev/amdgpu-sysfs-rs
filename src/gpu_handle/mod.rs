@@ -285,11 +285,13 @@ impl GpuHandle {
 
     /// Writes and commits the given clocks table to `pp_od_clk_voltage`.
     #[cfg(feature = "overdrive")]
-    pub fn set_clocks_table(&self, table: &ClocksTableGen) -> Result<CommitHandle> {
+    pub fn set_clocks_table(&self, new_table: &ClocksTableGen) -> Result<CommitHandle> {
+        let old_table = self.get_clocks_table()?;
+
         let path = self.sysfs_path.join("pp_od_clk_voltage");
         let mut file = File::create(&path)?;
 
-        table.write_commands(&mut file)?;
+        new_table.write_commands(&mut file, &old_table)?;
 
         Ok(CommitHandle::new(path))
     }

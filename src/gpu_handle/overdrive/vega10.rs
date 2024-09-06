@@ -1,5 +1,5 @@
 //! The format used by Vega10 and older GPUs.
-use super::{parse_range_line, push_level_line, ClocksLevel, ClocksTable, Range};
+use super::{parse_range_line, push_level_line, ClocksLevel, ClocksTable, ClocksTableGen, Range};
 use crate::{
     error::{Error, ErrorKind::ParseError},
     Result,
@@ -21,7 +21,11 @@ pub struct Table {
 }
 
 impl ClocksTable for Table {
-    fn write_commands<W: Write>(&self, writer: &mut W) -> Result<()> {
+    fn write_commands<W: Write>(
+        &self,
+        writer: &mut W,
+        _previous_table: &ClocksTableGen,
+    ) -> Result<()> {
         for (i, level) in self.sclk_levels.iter().enumerate() {
             let command = level_command(*level, i, 's');
             writer.write_all(command.as_bytes())?;
@@ -325,7 +329,9 @@ mod tests {
         table.set_max_voltage(1200).unwrap();
 
         let mut buf = Vec::new();
-        table.write_commands(&mut buf).unwrap();
+        table
+            .write_commands(&mut buf, &table.clone().into())
+            .unwrap();
         let commands = String::from_utf8(buf).unwrap();
 
         let expected_commands = arr_commands([

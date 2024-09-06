@@ -49,7 +49,7 @@ impl HwMon {
                 crit_hyst: self.read_temp(&format!("temp{i}_crit_hyst")).ok(),
             };
 
-            match self.read_file(&format!("temp{i}_label")) {
+            match self.read_file(format!("temp{i}_label")) {
                 Ok(label) => {
                     temps.insert(label, temperature);
                 }
