@@ -439,6 +439,15 @@ impl GpuHandle {
         self.read_fan_info("fan_minimum_pwm", "FAN_MINIMUM_PWM", "MINIMUM_PWM")
     }
 
+    /// Gets the current fan zero RPM mode. (Preview)
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// Not yet in upstream kernel: https://lists.freedesktop.org/archives/amd-gfx/2024-October/115857.html
+    pub fn get_fan_zero_rpm(&self) -> Result<bool> {
+        self.read_fan_info("fan_zero_rpm", "FAN_ZERO_RPM", "ZERO_RPM")
+            .map(|info| info.current == 1)
+    }
+
     fn set_fan_value(
         &self,
         file: &str,
@@ -511,6 +520,14 @@ impl GpuHandle {
     /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
     pub fn set_fan_minimum_pwm(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value("fan_minimum_pwm", value, "FAN_MINIMUM_PWM", "MINIMUM_PWM")
+    }
+
+    /// Sets the current fan zero RPM mode. (Preview)
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    /// Not yet in upstream kernel: https://lists.freedesktop.org/archives/amd-gfx/2024-October/115857.html
+    pub fn set_fan_zero_rpm(&self, enabled: bool) -> Result<CommitHandle> {
+        self.set_fan_value("fan_zero_rpm", enabled as u32, "FAN_ZERO_RPM", "ZERO_RPM")
     }
 
     fn reset_fan_value(&self, file: &str) -> Result<()> {
