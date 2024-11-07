@@ -28,7 +28,7 @@ test_with_handle! {
         Ok(FanCurve { points: vec![(0, 0); 5].into_boxed_slice(), allowed_ranges: Some(FanCurveRanges {temperature_range: 25..=100, speed_range: 20..=100 })})
     },
     get_fan_zero_rpm => {
-        GpuHandle::get_fan_zero_rpm,
+        GpuHandle::get_fan_zero_rpm_enable,
         Ok(false),
     }
 }

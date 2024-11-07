@@ -439,13 +439,27 @@ impl GpuHandle {
         self.read_fan_info("fan_minimum_pwm", "FAN_MINIMUM_PWM", "MINIMUM_PWM")
     }
 
-    /// Gets the current fan zero RPM mode. (Preview)
+    /// Gets the current fan zero RPM mode.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
-    /// Not yet in upstream kernel: https://lists.freedesktop.org/archives/amd-gfx/2024-October/115857.html
-    pub fn get_fan_zero_rpm(&self) -> Result<bool> {
-        self.read_fan_info("fan_zero_rpm", "FAN_ZERO_RPM", "ZERO_RPM")
-            .map(|info| info.current == 1)
+    pub fn get_fan_zero_rpm_enable(&self) -> Result<bool> {
+        self.read_fan_info(
+            "fan_zero_rpm_enable",
+            "FAN_ZERO_RPM_ENABLE",
+            "ZERO_RPM_ENABLE",
+        )
+        .map(|info| info.current == 1)
+    }
+
+    /// Gets the current fan zero RPM stop temperature.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn get_fan_zero_rpm_stop_temperature(&self) -> Result<FanInfo> {
+        self.read_fan_info(
+            "fan_zero_rpm_stop_temperature",
+            "FAN_ZERO_RPM_STOP_TEMPERATURE",
+            "ZERO_RPM_STOP_TEMPERATURE",
+        )
     }
 
     fn set_fan_value(
@@ -517,17 +531,32 @@ impl GpuHandle {
     /// Sets the fan minimum PWM. Value is a percentage.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
-    /// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#fan-minimum-pwm>
     pub fn set_fan_minimum_pwm(&self, value: u32) -> Result<CommitHandle> {
         self.set_fan_value("fan_minimum_pwm", value, "FAN_MINIMUM_PWM", "MINIMUM_PWM")
     }
 
-    /// Sets the current fan zero RPM mode. (Preview)
+    /// Sets the current fan zero RPM mode.
     ///
     /// Only available on Navi3x (RDNA 3) or newer.
-    /// Not yet in upstream kernel: https://lists.freedesktop.org/archives/amd-gfx/2024-October/115857.html
-    pub fn set_fan_zero_rpm(&self, enabled: bool) -> Result<CommitHandle> {
-        self.set_fan_value("fan_zero_rpm", enabled as u32, "FAN_ZERO_RPM", "ZERO_RPM")
+    pub fn set_fan_zero_rpm_enable(&self, enabled: bool) -> Result<CommitHandle> {
+        self.set_fan_value(
+            "fan_zero_rpm_enable",
+            enabled as u32,
+            "FAN_ZERO_RPM_ENABLE",
+            "ZERO_RPM_ENABLE",
+        )
+    }
+
+    /// Sets the fan zero RPM stop temperature.
+    ///
+    /// Only available on Navi3x (RDNA 3) or newer.
+    pub fn set_fan_zero_rpm_stop_temperature(&self, value: u32) -> Result<CommitHandle> {
+        self.set_fan_value(
+            "fan_zero_rpm_stop_temperature",
+            value,
+            "FAN_ZERO_RPM_STOP_TEMPERATURE",
+            "ZERO_RPM_STOP_TEMPERATURE",
+        )
     }
 
     fn reset_fan_value(&self, file: &str) -> Result<()> {
