@@ -1,0 +1,9 @@
+OD_SCLK:
+0:       1600Mhz
+1:       1600Mhz
+OD_RANGE:
+SCLK:     200Mhz       1600Mhz
+CCLK:    1400Mhz       3500Mhz
+CCLK_RANGE in Core0:
+0:       1400Mhz
+1:       3500Mhz

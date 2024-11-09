@@ -234,12 +234,13 @@ impl FromStr for Table {
         let mut voltage_offset = None;
         let mut voltage_offset_range = None;
 
-        let mut i = 1;
-        for line in s
+        let mut lines = s
             .lines()
             .map(trim_sysfs_line)
-            .filter(|line| !line.is_empty())
-        {
+            .filter(|line| !line.is_empty());
+
+        let mut i = 1;
+        while let Some(line) = lines.next() {
             match line {
                 "OD_SCLK:" => current_section = Some(Section::Sclk),
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
@@ -259,12 +260,17 @@ impl FromStr for Table {
                         let (range, _) = parse_range_line(line, i)?;
                         curve_voltage_points.push(range);
                     }
+                    Some(Section::Range) if line.starts_with("CCLK_RANGE") => {
+                        lines.next();
+                        lines.next();
+                    }
                     Some(Section::Range) => {
                         let (range, name) = parse_range_line(line, i)?;
                         match name {
                             "SCLK" => allowed_sclk_range = Some(range),
                             "MCLK" => allowed_mclk_range = Some(range),
                             "VDDGFX_OFFSET" => voltage_offset_range = Some(range),
+                            "CCLK" => (), // Ignore Van Gogh CPU clocks
                             other => {
                                 return Err(ParseError {
                                     msg: format!("Unexpected range item: {other}"),
@@ -459,6 +465,7 @@ mod tests {
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
     const TABLE_PHOENIX: &str = include_table!("internal-7840u");
+    const TABLE_VANGOGH: &str = include_table!("vangogh");
 
     #[test]
     fn parse_5700xt_full() {
@@ -741,6 +748,12 @@ mod tests {
     #[test]
     fn parse_phoenix_full() {
         let table = Table::from_str(TABLE_PHOENIX).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_vangogh_full() {
+        let table = Table::from_str(TABLE_VANGOGH).unwrap();
         assert_yaml_snapshot!(table);
     }
 }
