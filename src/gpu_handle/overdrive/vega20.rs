@@ -449,7 +449,9 @@ fn voltage_offset_line(offset: i32) -> String {
 mod tests {
     use super::{OdRange, Table};
     use crate::{
-        gpu_handle::overdrive::{arr_commands, ClocksLevel, ClocksTable, Range},
+        gpu_handle::overdrive::{
+            arr_commands, tests::TABLE_PHOENIX, ClocksLevel, ClocksTable, Range,
+        },
         include_table,
     };
     use insta::assert_yaml_snapshot;
@@ -464,7 +466,6 @@ mod tests {
     const TABLE_7900XTX: &str = include_table!("rx7900xtx");
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
-    const TABLE_PHOENIX: &str = include_table!("internal-7840u");
     const TABLE_VANGOGH: &str = include_table!("vangogh");
 
     #[test]

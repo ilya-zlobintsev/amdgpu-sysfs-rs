@@ -1,0 +1,42 @@
+---
+source: src/gpu_handle/overdrive/mod.rs
+expression: table
+---
+kind: vega10
+data:
+  sclk_levels:
+    - clockspeed: 852
+      voltage: 800
+    - clockspeed: 991
+      voltage: 900
+    - clockspeed: 1138
+      voltage: 950
+    - clockspeed: 1269
+      voltage: 1000
+    - clockspeed: 1312
+      voltage: 1050
+    - clockspeed: 1474
+      voltage: 1100
+    - clockspeed: 1538
+      voltage: 1150
+    - clockspeed: 1590
+      voltage: 1200
+  mclk_levels:
+    - clockspeed: 167
+      voltage: 800
+    - clockspeed: 500
+      voltage: 800
+    - clockspeed: 700
+      voltage: 900
+    - clockspeed: 920
+      voltage: 950
+  od_range:
+    sclk:
+      min: 852
+      max: 2400
+    mclk:
+      min: 167
+      max: 1500
+    vddc:
+      min: 800
+      max: 1200

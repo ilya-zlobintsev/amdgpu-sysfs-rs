@@ -177,7 +177,14 @@ impl FromStr for ClocksTableGen {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        if s.contains("VDDC_CURVE") || s.contains("OD_VDDGFX_OFFSET") {
+        if s.contains("VDDC_CURVE") || s.contains("OD_VDDGFX_OFFSET") || {
+            let mut lines = s.lines();
+            lines.next() == Some("OD_SCLK:")
+                && lines.next().is_some_and(|sclk_line| {
+                    let sclk_line = sclk_line.to_ascii_lowercase();
+                    sclk_line.contains("mhz") && !sclk_line.contains("mv")
+                })
+        } {
             vega20::Table::from_str(s).map(Self::Vega20)
         } else {
             vega10::Table::from_str(s).map(Self::Vega10)
@@ -345,6 +352,12 @@ fn arr_commands<const N: usize>(commands: [&str; N]) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use insta::assert_yaml_snapshot;
+
+    use crate::gpu_handle::overdrive::ClocksTableGen;
+
     use super::{check_clockspeed_in_range, parse_level_line, parse_range_line, Range};
 
     #[macro_export]
@@ -353,6 +366,9 @@ mod tests {
             include_test_data!(concat!($name, "/pp_od_clk_voltage"))
         };
     }
+
+    pub const TABLE_PHOENIX: &str = include_table!("internal-7840u");
+    pub const TABLE_VEGA56: &str = include_table!("vega56");
 
     #[test]
     fn parse_range_line_sclk() {
@@ -388,5 +404,17 @@ mod tests {
         let (range, name) = parse_range_line(line, 0).unwrap();
         assert_eq!(range, Range::full(800, 2150));
         assert_eq!(name, "VDDC_CURVE_SCLK[2]");
+    }
+
+    #[test]
+    fn detect_type_phoenix() {
+        let table = ClocksTableGen::from_str(TABLE_PHOENIX).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn detect_type_vega10() {
+        let table = ClocksTableGen::from_str(TABLE_VEGA56).unwrap();
+        assert_yaml_snapshot!(table);
     }
 }
