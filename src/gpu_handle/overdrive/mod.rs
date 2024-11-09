@@ -266,7 +266,7 @@ impl Range {
     }
 
     /// Creates an empty range.
-    pub fn empty() -> Self {
+    pub const fn empty() -> Self {
         Self {
             min: None,
             max: None,

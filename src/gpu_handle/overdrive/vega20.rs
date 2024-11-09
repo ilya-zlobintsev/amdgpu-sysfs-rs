@@ -18,7 +18,7 @@ use std::{cmp, io::Write, str::FromStr};
 pub struct Table {
     /// The current core clock range.
     pub current_sclk_range: Range,
-    /// The current memory clock range.
+    /// The current memory clock range. Empty on iGPUs.
     pub current_mclk_range: Range,
     /// The current voltage curve. May be empty if the GPU does not support it.
     pub vddc_curve: Vec<ClocksLevel>,
@@ -300,10 +300,7 @@ impl FromStr for Table {
                 msg: "No sclk range found".to_owned(),
                 line: i,
             })?,
-            mclk: Some(allowed_mclk_range.ok_or_else(|| ParseError {
-                msg: "No mclk range found".to_owned(),
-                line: i,
-            })?),
+            mclk: allowed_mclk_range,
             curve_sclk_points,
             curve_voltage_points,
             voltage_offset: voltage_offset_range,
@@ -312,14 +309,10 @@ impl FromStr for Table {
             msg: "No current sclk range found".to_owned(),
             line: i,
         })?;
-        let current_mclk_range = current_mclk_range.ok_or_else(|| ParseError {
-            msg: "No current mclk range found".to_owned(),
-            line: i,
-        })?;
 
         Ok(Self {
             current_sclk_range,
-            current_mclk_range,
+            current_mclk_range: current_mclk_range.unwrap_or_else(Range::empty),
             vddc_curve,
             od_range,
             voltage_offset,
@@ -465,6 +458,7 @@ mod tests {
     const TABLE_7900XTX: &str = include_table!("rx7900xtx");
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
+    const TABLE_PHOENIX: &str = include_table!("internal-7840u");
 
     #[test]
     fn parse_5700xt_full() {
@@ -742,5 +736,11 @@ mod tests {
         let mut table = Table::from_str(TABLE_7800XT).unwrap();
         table.set_voltage_offset(-300).unwrap();
         table.set_voltage_offset(100).unwrap_err();
+    }
+
+    #[test]
+    fn parse_phoenix_full() {
+        let table = Table::from_str(TABLE_PHOENIX).unwrap();
+        assert_yaml_snapshot!(table);
     }
 }
