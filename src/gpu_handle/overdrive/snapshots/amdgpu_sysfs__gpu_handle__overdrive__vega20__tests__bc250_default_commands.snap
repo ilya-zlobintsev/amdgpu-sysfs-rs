@@ -1,0 +1,5 @@
+---
+source: src/gpu_handle/overdrive/vega20.rs
+expression: "table.get_commands(&ClocksTableGen::Vega20(table.clone())).unwrap()"
+---
+- vc 0 1500 837

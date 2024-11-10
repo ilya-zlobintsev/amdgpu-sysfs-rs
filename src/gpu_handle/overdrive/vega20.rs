@@ -23,7 +23,7 @@ pub struct Table {
     /// The current voltage curve. May be empty if the GPU does not support it.
     pub vddc_curve: Vec<ClocksLevel>,
     /// BC-250 special
-    pub pure_vddc: Vec<i32>,
+    pub pure_vddc: Option<i32>,
     /// Voltage offset(in mV) applied on target voltage calculation.
     /// This is available for Sienna Cichlid, Navy Flounder and Dimgrey Cavefish.
     ///
@@ -44,6 +44,24 @@ impl ClocksTable for Table {
                 "Mismatched clocks table format".to_owned(),
             ));
         };
+
+        // BC-250 is special and only takes "vc" curve options, nothing else
+        // https://github.com/torvalds/linux/blob/a9cda7c0ffedb47b23002e109bd26ab2a2ab99c9/drivers/gpu/drm/amd/pm/swsmu/smu11/cyan_skillfish_ppt.c#L446
+        if let Some(bc250_vddc) = self.pure_vddc {
+            let mut lines = Vec::with_capacity(2);
+
+            if let Some(sclk_min) = self.current_sclk_range.min {
+                lines.push(vddc_curve_line(0, sclk_min, bc250_vddc));
+            }
+
+            for line in lines {
+                writer
+                    .write_all(line.as_bytes())
+                    .with_context(|| format!("Error when writing vc line `{line}`"))?;
+            }
+
+            return Ok(());
+        }
 
         let mut clocks_commands = Vec::with_capacity(4);
 
@@ -128,14 +146,26 @@ impl ClocksTable for Table {
     }
 
     fn get_max_voltage_range(&self) -> Option<Range> {
+        if let Some(raw_vddc) = self.od_range.vddc {
+            return Some(raw_vddc);
+        }
+
         self.od_range.curve_voltage_points.last().copied()
     }
 
     fn get_min_voltage_range(&self) -> Option<Range> {
+        if let Some(raw_vddc) = self.od_range.vddc {
+            return Some(raw_vddc);
+        }
+
         self.od_range.curve_voltage_points.first().copied()
     }
 
     fn get_current_voltage_range(&self) -> Option<Range> {
+        if let Some(vddc) = self.pure_vddc {
+            return Some(Range::min(vddc));
+        }
+
         let min = self.vddc_curve.first().map(|level| level.voltage)?;
         let max = self.vddc_curve.last().map(|level| level.voltage)?;
         Some(Range::full(min, max))
@@ -186,6 +216,11 @@ impl ClocksTable for Table {
     }
 
     fn set_min_voltage_unchecked(&mut self, voltage: i32) -> Result<()> {
+        if self.od_range.vddc.is_some() {
+            self.pure_vddc = Some(voltage);
+            return Ok(());
+        }
+
         self.vddc_curve
             .first_mut()
             .ok_or_else(|| {
@@ -230,7 +265,7 @@ impl FromStr for Table {
         let mut allowed_mclk_range = None;
 
         let mut vddc_curve = Vec::with_capacity(3);
-        let mut vddc = Vec::new();
+        let mut pure_vddc = None;
         let mut curve_sclk_points = Vec::with_capacity(3);
         let mut curve_voltage_points = Vec::with_capacity(3);
 
@@ -292,7 +327,7 @@ impl FromStr for Table {
                         let mut split = line.split_whitespace();
                         let _num: i32 = parse_line_item(&mut split, i, "level number", &[":"])?;
                         let voltage: i32 = parse_line_item(&mut split, i, "voltage", &["mv"])?;
-                        vddc.push(voltage);
+                        pure_vddc = Some(voltage);
                     }
                     Some(Section::VddcCurve) => {
                         let _ = push_level_line(line, &mut vddc_curve, i);
@@ -334,7 +369,7 @@ impl FromStr for Table {
             current_mclk_range: current_mclk_range.unwrap_or_else(Range::empty),
             vddc_curve,
             od_range,
-            pure_vddc: vddc,
+            pure_vddc,
             voltage_offset,
         })
     }
@@ -350,6 +385,7 @@ impl Table {
         self.current_sclk_range = Range::empty();
         self.current_mclk_range = Range::empty();
         self.voltage_offset = None;
+        self.pure_vddc = None;
     }
 
     /// Normalizes the VDDC curve making sure all of the values are within the allowed range.
@@ -466,7 +502,9 @@ fn voltage_offset_line(offset: i32) -> String {
 mod tests {
     use super::{OdRange, Table};
     use crate::{
-        gpu_handle::overdrive::{arr_commands, ClocksLevel, ClocksTable, Range},
+        gpu_handle::overdrive::{
+            arr_commands, tests::TABLE_BC250, ClocksLevel, ClocksTable, Range,
+        },
         include_table,
     };
     use insta::assert_yaml_snapshot;
@@ -610,7 +648,7 @@ mod tests {
             current_sclk_range: Range::empty(),
             current_mclk_range: Range::full(500, 1000),
             vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
-            pure_vddc: vec![],
+            pure_vddc: None,
             voltage_offset: None,
             od_range: OdRange {
                 sclk: Range::empty(),
@@ -768,5 +806,51 @@ mod tests {
     fn parse_vangogh_full() {
         let table = Table::from_str(TABLE_VANGOGH).unwrap();
         assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn bc250_default_commands() {
+        let table = Table::from_str(TABLE_BC250).unwrap();
+        assert_yaml_snapshot!(table.get_commands(&table.clone().into()).unwrap());
+    }
+
+    #[test]
+    fn generic_actions_bc250() {
+        let mut table = Table::from_str(TABLE_BC250).unwrap();
+
+        let sclk_range = table.get_min_sclk_range().unwrap();
+        assert_eq!(sclk_range, Range::full(1000, 2000));
+
+        assert!(table.get_max_sclk_voltage().is_none());
+
+        let current_sclk_range = table.get_current_sclk_range();
+        assert_eq!(current_sclk_range, Range::min(1500));
+
+        let current_voltage_range = table.get_current_voltage_range().unwrap();
+        assert_eq!(current_voltage_range, Range::min(837));
+
+        assert_eq!(None, table.get_max_sclk_voltage());
+
+        assert_eq!(
+            Range::full(700, 1129),
+            table.get_min_voltage_range().unwrap()
+        );
+        assert_eq!(
+            Range::full(700, 1129),
+            table.get_max_voltage_range().unwrap()
+        );
+
+        table.set_min_sclk(1200).unwrap();
+        table.set_max_sclk(1200).unwrap();
+
+        assert!(table.set_min_voltage(1135).is_err());
+        assert!(table.set_max_voltage(650).is_err());
+
+        table.set_min_voltage(850).unwrap();
+        assert!(table.set_max_voltage(900).is_err());
+
+        let commands = table.get_commands(&table.clone().into()).unwrap();
+        let expected_commands = vec!["vc 0 1200 850".to_owned()];
+        assert_eq!(expected_commands, commands);
     }
 }

@@ -11,8 +11,7 @@ data:
     min: ~
     max: ~
   vddc_curve: []
-  pure_vddc:
-    - 837
+  pure_vddc: 837
   voltage_offset: ~
   od_range:
     sclk:

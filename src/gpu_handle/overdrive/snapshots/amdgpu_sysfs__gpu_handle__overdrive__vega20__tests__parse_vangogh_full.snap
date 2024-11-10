@@ -9,7 +9,7 @@ current_mclk_range:
   min: ~
   max: ~
 vddc_curve: []
-pure_vddc: []
+pure_vddc: ~
 voltage_offset: ~
 od_range:
   sclk:
