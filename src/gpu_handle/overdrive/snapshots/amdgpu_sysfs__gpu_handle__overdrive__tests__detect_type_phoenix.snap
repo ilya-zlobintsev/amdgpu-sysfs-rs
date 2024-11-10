@@ -11,12 +11,14 @@ data:
     min: ~
     max: ~
   vddc_curve: []
+  pure_vddc: []
   voltage_offset: ~
   od_range:
     sclk:
       min: 800
       max: 2700
     mclk: ~
+    vddc: ~
     curve_sclk_points: []
     curve_voltage_points: []
     voltage_offset: ~

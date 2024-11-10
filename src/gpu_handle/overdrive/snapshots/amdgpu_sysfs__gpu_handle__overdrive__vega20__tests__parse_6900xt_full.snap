@@ -9,6 +9,7 @@ current_mclk_range:
   min: 97
   max: 1000
 vddc_curve: []
+pure_vddc: []
 voltage_offset: -10
 od_range:
   sclk:
@@ -17,7 +18,7 @@ od_range:
   mclk:
     min: 674
     max: 1075
+  vddc: ~
   curve_sclk_points: []
   curve_voltage_points: []
   voltage_offset: ~
-
