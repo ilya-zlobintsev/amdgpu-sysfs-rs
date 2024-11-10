@@ -369,6 +369,7 @@ mod tests {
 
     pub const TABLE_PHOENIX: &str = include_table!("internal-7840u");
     pub const TABLE_VEGA56: &str = include_table!("vega56");
+    pub const TABLE_BC250: &str = include_table!("bc250");
 
     #[test]
     fn parse_range_line_sclk() {
@@ -415,6 +416,12 @@ mod tests {
     #[test]
     fn detect_type_vega10() {
         let table = ClocksTableGen::from_str(TABLE_VEGA56).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn detect_type_bc250() {
+        let table = ClocksTableGen::from_str(TABLE_BC250).unwrap();
         assert_yaml_snapshot!(table);
     }
 }

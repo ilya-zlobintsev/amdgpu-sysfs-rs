@@ -466,9 +466,7 @@ fn voltage_offset_line(offset: i32) -> String {
 mod tests {
     use super::{OdRange, Table};
     use crate::{
-        gpu_handle::overdrive::{
-            arr_commands, tests::TABLE_PHOENIX, ClocksLevel, ClocksTable, Range,
-        },
+        gpu_handle::overdrive::{arr_commands, ClocksLevel, ClocksTable, Range},
         include_table,
     };
     use insta::assert_yaml_snapshot;
@@ -484,7 +482,6 @@ mod tests {
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
     const TABLE_VANGOGH: &str = include_table!("vangogh");
-    const TABLE_BC250: &str = include_table!("bc250");
 
     #[test]
     fn parse_5700xt_full() {
@@ -768,20 +765,8 @@ mod tests {
     }
 
     #[test]
-    fn parse_phoenix_full() {
-        let table = Table::from_str(TABLE_PHOENIX).unwrap();
-        assert_yaml_snapshot!(table);
-    }
-
-    #[test]
     fn parse_vangogh_full() {
         let table = Table::from_str(TABLE_VANGOGH).unwrap();
-        assert_yaml_snapshot!(table);
-    }
-
-    #[test]
-    fn parse_bc250() {
-        let table = Table::from_str(TABLE_BC250).unwrap();
         assert_yaml_snapshot!(table);
     }
 }

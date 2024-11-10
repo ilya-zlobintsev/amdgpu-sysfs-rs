@@ -1,0 +1,27 @@
+---
+source: src/gpu_handle/overdrive/mod.rs
+expression: table
+---
+kind: vega20
+data:
+  current_sclk_range:
+    min: 1500
+    max: ~
+  current_mclk_range:
+    min: ~
+    max: ~
+  vddc_curve: []
+  pure_vddc:
+    - 837
+  voltage_offset: ~
+  od_range:
+    sclk:
+      min: 1000
+      max: 2000
+    mclk: ~
+    vddc:
+      min: 700
+      max: 1129
+    curve_sclk_points: []
+    curve_voltage_points: []
+    voltage_offset: ~
