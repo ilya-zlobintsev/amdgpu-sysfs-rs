@@ -385,7 +385,6 @@ impl Table {
         self.current_sclk_range = Range::empty();
         self.current_mclk_range = Range::empty();
         self.voltage_offset = None;
-        self.pure_vddc = None;
     }
 
     /// Normalizes the VDDC curve making sure all of the values are within the allowed range.
