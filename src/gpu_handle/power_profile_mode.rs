@@ -42,7 +42,11 @@ pub struct PowerProfileComponent {
 impl PowerProfileModesTable {
     /// Parse the table from a given string
     pub fn parse(s: &str) -> Result<Self> {
-        let mut split = s.split_whitespace();
+        let mut lines = s.lines().map(|line| line.split_whitespace());
+
+        let mut split = lines
+            .next()
+            .ok_or_else(|| Error::unexpected_eol("Power profile line", 1))?;
         let start = split
             .next()
             .ok_or_else(|| Error::unexpected_eol("Value description", 1))?;
@@ -50,7 +54,17 @@ impl PowerProfileModesTable {
         match start {
             "NUM" => Self::parse_flat(s),
             "PROFILE_INDEX(NAME)" => Self::parse_nested(s),
-            _ if start.parse::<u16>().is_ok() => Self::parse_basic(s),
+            _ if start.parse::<u16>().is_ok() => {
+                if lines
+                    .next()
+                    .and_then(|mut line| line.next())
+                    .is_some_and(|term| term.parse::<u16>().is_ok())
+                {
+                    Self::parse_basic(s)
+                } else {
+                    Self::parse_rotated(s)
+                }
+            }
             _ => Err(Error::basic_parse_error(
                 "Could not determine the type of power profile mode table",
             )),
@@ -253,6 +267,76 @@ impl PowerProfileModesTable {
         })
     }
 
+    /// Parse "rotated" format (with columns as profiles, and rows as values).
+    /// Used at least by RDNA3 laptop GPUs (example data: 7700s)
+    fn parse_rotated(s: &str) -> Result<Self> {
+        let mut modes = BTreeMap::new();
+        let mut active = None;
+
+        let mut lines = s.lines().map(str::trim).enumerate();
+
+        let mut header_split = lines
+            .next()
+            .ok_or_else(|| Error::basic_parse_error("Missing header"))?
+            .1
+            .split_whitespace();
+
+        while let Some(raw_index) = header_split.next() {
+            let index: u16 = raw_index.parse()?;
+
+            let mut name = header_split
+                .next()
+                .ok_or_else(|| Error::unexpected_eol("Missing section name", 1))?;
+
+            if let Some(stripped) = name.strip_suffix("*") {
+                name = stripped;
+                active = Some(index);
+            }
+
+            modes.insert(
+                index,
+                PowerProfile {
+                    name: name.to_owned(),
+                    components: vec![],
+                },
+            );
+        }
+
+        let mut value_names = vec![];
+
+        for (i, line) in lines {
+            let mut split = line.split_whitespace();
+            let value_name = split
+                .next()
+                .ok_or_else(|| Error::unexpected_eol("Value name", i + 1))?;
+
+            value_names.push(value_name.to_owned());
+
+            for (profile_i, raw_value) in split.enumerate() {
+                let value = raw_value.parse()?;
+
+                let component = PowerProfileComponent {
+                    clock_type: None,
+                    values: vec![Some(value)],
+                };
+
+                modes
+                    .get_mut(&(profile_i as u16))
+                    .ok_or_else(|| {
+                        Error::basic_parse_error("Could not get profile from header by index")
+                    })?
+                    .components
+                    .push(component);
+            }
+        }
+
+        Ok(Self {
+            modes,
+            value_names,
+            active: active.ok_or_else(|| Error::basic_parse_error("No active level found"))?,
+        })
+    }
+
     /// Parse the format used by integrated GPUs
     fn parse_basic(s: &str) -> Result<Self> {
         let mut modes = BTreeMap::new();
@@ -306,6 +390,7 @@ mod tests {
     const TABLE_RX580: &str = include_test_data!("rx580/pp_power_profile_mode");
     const TABLE_4800H: &str = include_test_data!("internal-4800h/pp_power_profile_mode");
     const TABLE_RX6900XT: &str = include_test_data!("rx6900xt/pp_power_profile_mode");
+    const TABLE_RX7700S: &str = include_test_data!("rx7700s/pp_power_profile_mode");
     const TABLE_RX7800XT: &str = include_test_data!("rx7800xt/pp_power_profile_mode");
 
     #[test]
@@ -329,6 +414,12 @@ mod tests {
     #[test]
     fn parse_full_rx6900xt() {
         let table = PowerProfileModesTable::parse(TABLE_RX6900XT).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_full_rx7700s() {
+        let table = PowerProfileModesTable::parse(TABLE_RX7700S).unwrap();
         assert_yaml_snapshot!(table);
     }
 

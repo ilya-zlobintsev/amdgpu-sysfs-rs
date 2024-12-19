@@ -1,0 +1,381 @@
+---
+source: src/gpu_handle/power_profile_mode.rs
+expression: table
+---
+modes:
+  0:
+    name: BOOTUP_DEFAULT
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 800
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 3
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  1:
+    name: 3D_FULL_SCREEN
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 2
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 650
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  2:
+    name: POWER_SAVING
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 3
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  3:
+    name: VIDEO
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  4:
+    name: VR
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1000
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  5:
+    name: COMPUTE
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1000
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  6:
+    name: CUSTOM
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 800
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 3
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+  7:
+    name: WINDOW_3D
+    components:
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 2
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 4
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 650
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 3
+      - clock_type: ~
+        values:
+          - 1
+      - clock_type: ~
+        values:
+          - 0
+      - clock_type: ~
+        values:
+          - 0
+value_names:
+  - Gfx_ActiveHystLimit
+  - Gfx_IdleHystLimit
+  - Gfx_FPS
+  - Gfx_MinActiveFreqType
+  - Gfx_BoosterFreqType
+  - Gfx_MinActiveFreq
+  - Gfx_BoosterFreq
+  - Fclk_ActiveHystLimit
+  - Fclk_IdleHystLimit
+  - Fclk_FPS
+  - Fclk_MinActiveFreqType
+  - Fclk_BoosterFreqType
+  - Fclk_MinActiveFreq
+  - Fclk_BoosterFreq
+active: 0
