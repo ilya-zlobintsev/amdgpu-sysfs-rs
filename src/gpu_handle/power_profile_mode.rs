@@ -315,18 +315,22 @@ impl PowerProfileModesTable {
             for (profile_i, raw_value) in split.enumerate() {
                 let value = raw_value.parse()?;
 
-                let component = PowerProfileComponent {
-                    clock_type: None,
-                    values: vec![Some(value)],
-                };
+                let profile = modes.get_mut(&(profile_i as u16)).ok_or_else(|| {
+                    Error::basic_parse_error("Could not get profile from header by index")
+                })?;
 
-                modes
-                    .get_mut(&(profile_i as u16))
-                    .ok_or_else(|| {
-                        Error::basic_parse_error("Could not get profile from header by index")
-                    })?
-                    .components
-                    .push(component);
+                match profile.components.first_mut() {
+                    Some(component) => {
+                        component.values.push(Some(value));
+                    }
+                    None => {
+                        let component = PowerProfileComponent {
+                            clock_type: None,
+                            values: vec![Some(value)],
+                        };
+                        profile.components.push(component);
+                    }
+                }
             }
         }
 
