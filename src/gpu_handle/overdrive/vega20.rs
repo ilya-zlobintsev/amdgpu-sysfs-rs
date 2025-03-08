@@ -18,6 +18,8 @@ use std::{cmp, io::Write, str::FromStr};
 pub struct Table {
     /// The current core clock range.
     pub current_sclk_range: Range,
+    /// The current core clock offset range.
+    pub current_sclk_offset_range: Range,
     /// The current memory clock range. Empty on iGPUs.
     pub current_mclk_range: Range,
     /// The current voltage curve. May be empty if the GPU does not support it.
@@ -59,6 +61,8 @@ impl ClocksTable for Table {
         clocks_commands.extend([
             (self.current_sclk_range.min, 's', 0),
             (self.current_sclk_range.max, 's', 1),
+            (self.current_sclk_offset_range.min, 's', 0),
+            (self.current_sclk_offset_range.max, 's', 1),
         ]);
 
         if let (Some(current_mclk_min), Some(old_mclk_max)) = (
@@ -106,7 +110,7 @@ impl ClocksTable for Table {
             .curve_sclk_points
             .last()
             .copied()
-            .or(Some(self.od_range.sclk))
+            .or(self.od_range.sclk)
     }
 
     fn get_min_sclk_range(&self) -> Option<Range> {
@@ -114,7 +118,7 @@ impl ClocksTable for Table {
             .curve_sclk_points
             .first()
             .copied()
-            .or(Some(self.od_range.sclk))
+            .or(self.od_range.sclk)
     }
 
     fn get_max_mclk_range(&self) -> Option<Range> {
@@ -223,8 +227,10 @@ impl FromStr for Table {
         let mut current_section = None;
 
         let mut current_sclk_range = None;
+        let mut current_sclk_offset_range = None;
         let mut current_mclk_range = None;
         let mut allowed_sclk_range = None;
+        let mut allowed_sclk_offset_range = None;
         let mut allowed_mclk_range = None;
 
         let mut vddc_curve = Vec::with_capacity(3);
@@ -243,6 +249,7 @@ impl FromStr for Table {
         while let Some(line) = lines.next() {
             match line {
                 "OD_SCLK:" => current_section = Some(Section::Sclk),
+                "OD_SCLK_OFFSET:" => current_section = Some(Section::SclkOffset),
                 "OD_MCLK:" => current_section = Some(Section::Mclk),
                 "OD_RANGE:" => current_section = Some(Section::Range),
                 "OD_VDDC_CURVE:" => current_section = Some(Section::VddcCurve),
@@ -268,6 +275,7 @@ impl FromStr for Table {
                         let (range, name) = parse_range_line(line, i)?;
                         match name {
                             "SCLK" => allowed_sclk_range = Some(range),
+                            "SCLK_OFFSET" => allowed_sclk_offset_range = Some(range),
                             "MCLK" => allowed_mclk_range = Some(range),
                             "VDDGFX_OFFSET" => voltage_offset_range = Some(range),
                             "CCLK" => (), // Ignore Van Gogh CPU clocks
@@ -281,6 +289,9 @@ impl FromStr for Table {
                         }
                     }
                     Some(Section::Sclk) => parse_min_max_line(line, i, &mut current_sclk_range)?,
+                    Some(Section::SclkOffset) => {
+                        parse_min_max_line(line, i, &mut current_sclk_offset_range)?
+                    }
                     Some(Section::Mclk) => parse_min_max_line(line, i, &mut current_mclk_range)?,
                     Some(Section::VddcCurve) => {
                         let _ = push_level_line(line, &mut vddc_curve, i);
@@ -302,23 +313,18 @@ impl FromStr for Table {
         }
 
         let od_range = OdRange {
-            sclk: allowed_sclk_range.ok_or_else(|| ParseError {
-                msg: "No sclk range found".to_owned(),
-                line: i,
-            })?,
+            sclk: allowed_sclk_range,
+            sclk_offset: allowed_sclk_offset_range,
             mclk: allowed_mclk_range,
             curve_sclk_points,
             curve_voltage_points,
             voltage_offset: voltage_offset_range,
         };
-        let current_sclk_range = current_sclk_range.ok_or_else(|| ParseError {
-            msg: "No current sclk range found".to_owned(),
-            line: i,
-        })?;
 
         Ok(Self {
-            current_sclk_range,
-            current_mclk_range: current_mclk_range.unwrap_or_else(Range::empty),
+            current_sclk_range: current_sclk_range.unwrap_or_default(),
+            current_sclk_offset_range: current_sclk_offset_range.unwrap_or_default(),
+            current_mclk_range: current_mclk_range.unwrap_or_default(),
             vddc_curve,
             od_range,
             voltage_offset,
@@ -370,8 +376,10 @@ fn normalize_value(mut value: i32, range: Range) -> i32 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct OdRange {
-    /// Clocks range for sclk (in MHz). Should be present on all GPUs.
-    pub sclk: Range,
+    /// Clocks range for sclk (in MHz). Present on RDNA1-3.
+    pub sclk: Option<Range>,
+    /// Clocks offset range for sclk (in MHz). Present on at least RDNA4.
+    pub sclk_offset: Option<Range>,
     /// Clocks range for mclk (in MHz). Present on discrete GPUs only.
     pub mclk: Option<Range>,
     /// Frequencies available at specific levels.
@@ -385,6 +393,7 @@ pub struct OdRange {
 #[derive(Debug)]
 enum Section {
     Sclk,
+    SclkOffset,
     Mclk,
     VddcCurve,
     Range,
@@ -466,6 +475,7 @@ mod tests {
     const TABLE_7900XTX: &str = include_table!("rx7900xtx");
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
+    const TABLE_9070XT: &str = include_table!("rx9070xt");
     const TABLE_VANGOGH: &str = include_table!("vangogh");
 
     #[test]
@@ -491,10 +501,11 @@ mod tests {
         ];
 
         let od_range = OdRange {
-            sclk: Range::full(800, 2150),
+            sclk: Some(Range::full(800, 2150)),
             mclk: Some(Range::full(625, 950)),
             curve_sclk_points,
             curve_voltage_points,
+            sclk_offset: None,
             voltage_offset: None,
         };
         assert_eq!(table.od_range, od_range);
@@ -593,10 +604,12 @@ mod tests {
         let table = Table {
             current_sclk_range: Range::empty(),
             current_mclk_range: Range::full(500, 1000),
+            current_sclk_offset_range: Range::empty(),
             vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
             voltage_offset: None,
             od_range: OdRange {
-                sclk: Range::empty(),
+                sclk: None,
+                sclk_offset: None,
                 mclk: None,
                 curve_sclk_points: Vec::new(),
                 curve_voltage_points: Vec::new(),
@@ -737,6 +750,24 @@ mod tests {
     fn parse_7800xt_full() {
         let table = Table::from_str(TABLE_7800XT).unwrap();
         assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_9070xt_full() {
+        let table = Table::from_str(TABLE_9070XT).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn set_clock_offset_9070xt() {
+        let mut table = Table::from_str(TABLE_9070XT).unwrap();
+        table.clear();
+
+        table.current_sclk_offset_range.min = Some(-500);
+        table.current_sclk_offset_range.max = Some(1000);
+        table.voltage_offset = Some(-50);
+
+        assert_yaml_snapshot!(table.get_commands(&table.clone().into()).unwrap());
     }
 
     #[test]

@@ -5,6 +5,9 @@ expression: table
 current_sclk_range:
   min: 500
   max: 2314
+current_sclk_offset_range:
+  min: ~
+  max: ~
 current_mclk_range:
   min: 97
   max: 1000
@@ -14,10 +17,10 @@ od_range:
   sclk:
     min: 500
     max: 2600
+  sclk_offset: ~
   mclk:
     min: 674
     max: 1075
   curve_sclk_points: []
   curve_voltage_points: []
   voltage_offset: ~
-
