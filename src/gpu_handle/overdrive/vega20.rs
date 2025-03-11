@@ -341,6 +341,7 @@ impl Table {
     pub fn clear(&mut self) {
         self.current_sclk_range = Range::empty();
         self.current_mclk_range = Range::empty();
+        self.current_sclk_offset_range = Range::empty();
         self.voltage_offset = None;
     }
 
@@ -763,7 +764,6 @@ mod tests {
         let mut table = Table::from_str(TABLE_9070XT).unwrap();
         table.clear();
 
-        table.current_sclk_offset_range.min = Some(-500);
         table.current_sclk_offset_range.max = Some(1000);
         table.voltage_offset = Some(-50);
 

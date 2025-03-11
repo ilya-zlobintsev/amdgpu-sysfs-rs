@@ -2,6 +2,5 @@
 source: src/gpu_handle/overdrive/vega20.rs
 expression: table.get_commands(&table.clone().into()).unwrap()
 ---
-- s 0 -500
 - s 1 1000
 - vo -50
