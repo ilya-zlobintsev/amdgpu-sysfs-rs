@@ -181,6 +181,11 @@ impl GpuHandle {
         self.read_file("vbios_version")
     }
 
+    /// Returns the VRAM vendor
+    pub fn get_vram_vendor(&self) -> Result<String> {
+        self.read_file("mem_info_vram_vendor")
+    }
+
     /// Returns the currently forced performance level.
     pub fn get_power_force_performance_level(&self) -> Result<PerformanceLevel> {
         let raw_level = self.read_file("power_dpm_force_performance_level")?;
