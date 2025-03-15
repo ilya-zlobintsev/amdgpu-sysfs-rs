@@ -34,6 +34,9 @@ test_with_handle! {
         GpuHandle::get_max_link_speed, Ok("8.0 GT/s PCIe".to_owned()),
         GpuHandle::get_max_link_width, Ok("16".to_owned()),
     },
+    vram_vendor => {
+        GpuHandle::get_vram_vendor, Ok("hynix".to_owned()),
+    },
     pp_dpm_sclk => {
         GpuHandle::get_core_clock_levels,
         Ok(PowerLevels {
