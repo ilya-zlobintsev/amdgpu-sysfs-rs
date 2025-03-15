@@ -5,9 +5,8 @@ expression: table
 current_sclk_range:
   min: ~
   max: ~
-current_sclk_offset_range:
-  min: -500
-  max: 1000
+sclk_offset: 1000
+rdna4_sclk_offset_workaround: true
 current_mclk_range:
   min: 97
   max: 1259

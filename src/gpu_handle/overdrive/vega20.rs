@@ -18,8 +18,11 @@ use std::{cmp, io::Write, str::FromStr};
 pub struct Table {
     /// The current core clock range.
     pub current_sclk_range: Range,
-    /// The current core clock offset range.
-    pub current_sclk_offset_range: Range,
+    /// The current core clock offset (RDNA4+)
+    pub sclk_offset: Option<i32>,
+    /// Workaround for the original buggy SCLK offset range format on RDNA4
+    /// TODO: drop this when the new format is widely used (should be kernel 6.15+)
+    pub rdna4_sclk_offset_workaround: bool,
     /// The current memory clock range. Empty on iGPUs.
     pub current_mclk_range: Range,
     /// The current voltage curve. May be empty if the GPU does not support it.
@@ -61,8 +64,6 @@ impl ClocksTable for Table {
         clocks_commands.extend([
             (self.current_sclk_range.min, 's', 0),
             (self.current_sclk_range.max, 's', 1),
-            (self.current_sclk_offset_range.min, 's', 0),
-            (self.current_sclk_offset_range.max, 's', 1),
         ]);
 
         if let (Some(current_mclk_min), Some(old_mclk_max)) = (
@@ -78,6 +79,14 @@ impl ClocksTable for Table {
             (self.current_mclk_range.min, 'm', 0),
             (self.current_mclk_range.max, 'm', 1),
         ]);
+
+        if let Some(sclk_offset) = self.sclk_offset {
+            if self.rdna4_sclk_offset_workaround {
+                writeln!(writer, "s 1 {sclk_offset}").context("Could not write sclk offset")?;
+            } else {
+                writeln!(writer, "s {sclk_offset}").context("Could not write sclk offset")?;
+            }
+        }
 
         for (maybe_clockspeed, symbol, index) in clocks_commands {
             if let Some(clockspeed) = maybe_clockspeed {
@@ -237,6 +246,7 @@ impl FromStr for Table {
         let mut curve_sclk_points = Vec::with_capacity(3);
         let mut curve_voltage_points = Vec::with_capacity(3);
 
+        let mut sclk_offset = None;
         let mut voltage_offset = None;
         let mut voltage_offset_range = None;
 
@@ -290,7 +300,20 @@ impl FromStr for Table {
                     }
                     Some(Section::Sclk) => parse_min_max_line(line, i, &mut current_sclk_range)?,
                     Some(Section::SclkOffset) => {
-                        parse_min_max_line(line, i, &mut current_sclk_offset_range)?
+                        if line
+                            .split_ascii_whitespace()
+                            .next()
+                            .is_some_and(|start| start == "0:" || start == "1:")
+                        {
+                            parse_min_max_line(line, i, &mut current_sclk_offset_range)?
+                        } else {
+                            let line = line.to_ascii_lowercase();
+                            let raw_value = line.trim_end_matches("mhz");
+                            let value = raw_value
+                                .parse()
+                                .context("Could not parse sclk offset value")?;
+                            sclk_offset = Some(value);
+                        }
                     }
                     Some(Section::Mclk) => parse_min_max_line(line, i, &mut current_mclk_range)?,
                     Some(Section::VddcCurve) => {
@@ -321,9 +344,13 @@ impl FromStr for Table {
             voltage_offset: voltage_offset_range,
         };
 
+        let sclk_offset =
+            sclk_offset.or_else(|| current_sclk_offset_range.and_then(|range| range.max));
+
         Ok(Self {
             current_sclk_range: current_sclk_range.unwrap_or_default(),
-            current_sclk_offset_range: current_sclk_offset_range.unwrap_or_default(),
+            sclk_offset,
+            rdna4_sclk_offset_workaround: current_sclk_offset_range.is_some(),
             current_mclk_range: current_mclk_range.unwrap_or_default(),
             vddc_curve,
             od_range,
@@ -341,7 +368,7 @@ impl Table {
     pub fn clear(&mut self) {
         self.current_sclk_range = Range::empty();
         self.current_mclk_range = Range::empty();
-        self.current_sclk_offset_range = Range::empty();
+        self.sclk_offset = None;
         self.voltage_offset = None;
     }
 
@@ -477,6 +504,7 @@ mod tests {
     const TABLE_7900XT: &str = include_table!("rx7900xt");
     const TABLE_7800XT: &str = include_table!("rx7800xt");
     const TABLE_9070XT: &str = include_table!("rx9070xt");
+    const TABLE_9070XT_NEW: &str = include_test_data!("rx9070xt/pp_od_clk_voltage_new");
     const TABLE_VANGOGH: &str = include_table!("vangogh");
 
     #[test]
@@ -605,7 +633,8 @@ mod tests {
         let table = Table {
             current_sclk_range: Range::empty(),
             current_mclk_range: Range::full(500, 1000),
-            current_sclk_offset_range: Range::empty(),
+            sclk_offset: None,
+            rdna4_sclk_offset_workaround: false,
             vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
             voltage_offset: None,
             od_range: OdRange {
@@ -760,13 +789,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_9070xt_new_full() {
+        let table = Table::from_str(TABLE_9070XT_NEW).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
     fn set_clock_offset_9070xt() {
         let mut table = Table::from_str(TABLE_9070XT).unwrap();
         table.clear();
-
-        table.current_sclk_offset_range.max = Some(1000);
+        table.sclk_offset = Some(200);
         table.voltage_offset = Some(-50);
+        assert_yaml_snapshot!(table.get_commands(&table.clone().into()).unwrap());
+    }
 
+    #[test]
+    fn set_clock_offset_9070xt_new() {
+        let mut table = Table::from_str(TABLE_9070XT_NEW).unwrap();
+        table.clear();
+        table.sclk_offset = Some(200);
+        table.voltage_offset = Some(-50);
         assert_yaml_snapshot!(table.get_commands(&table.clone().into()).unwrap());
     }
 
