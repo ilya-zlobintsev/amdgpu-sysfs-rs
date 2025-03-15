@@ -82,9 +82,15 @@ impl ClocksTable for Table {
 
         if let Some(sclk_offset) = self.sclk_offset {
             if self.rdna4_sclk_offset_workaround {
-                writeln!(writer, "s 1 {sclk_offset}").context("Could not write sclk offset")?;
+                let line = format!("s 1 {sclk_offset}\n");
+                writer
+                    .write_all(line.as_bytes())
+                    .context("Could not write sclk offset")?;
             } else {
-                writeln!(writer, "s {sclk_offset}").context("Could not write sclk offset")?;
+                let line = format!("s {sclk_offset}\n");
+                writer
+                    .write_all(line.as_bytes())
+                    .context("Could not write sclk offset")?;
             }
         }
 
