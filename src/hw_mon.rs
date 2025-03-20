@@ -133,6 +133,18 @@ impl HwMon {
         pwm.parse().context("Unexpected PWM (driver bug?)")
     }
 
+    /// Gets the minimum pulse width modulation fan level.
+    pub fn get_fan_min_pwm(&self) -> Result<u8> {
+        let pwm = self.read_file("pwm1_min")?;
+        pwm.parse().context("Unexpected PWM (driver bug?)")
+    }
+
+    /// Gets the maximum pulse width modulation fan level.
+    pub fn get_fan_max_pwm(&self) -> Result<u8> {
+        let pwm = self.read_file("pwm1_max")?;
+        pwm.parse().context("Unexpected PWM (driver bug?)")
+    }
+
     /// Sets the pulse width modulation fan level.
     pub fn set_fan_pwm(&self, pwm: u8) -> Result<()> {
         self.write_file("pwm1", pwm.to_string())
