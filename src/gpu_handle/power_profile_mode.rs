@@ -279,10 +279,13 @@ impl PowerProfileModesTable {
             .next()
             .ok_or_else(|| Error::basic_parse_error("Missing header"))?
             .1
-            .split_whitespace();
+            .split_whitespace()
+            .peekable();
 
         while let Some(raw_index) = header_split.next() {
-            let index: u16 = raw_index.parse()?;
+            let index: u16 = raw_index.parse().map_err(|_| {
+                Error::basic_parse_error(format!("Invalid mode index '{raw_index}'"))
+            })?;
 
             let mut name = header_split
                 .next()
@@ -291,6 +294,11 @@ impl PowerProfileModesTable {
             if let Some(stripped) = name.strip_suffix("*") {
                 name = stripped;
                 active = Some(index);
+            }
+
+            if let Some(&"*") = header_split.peek() {
+                active = Some(index);
+                header_split.next();
             }
 
             modes.insert(
@@ -313,7 +321,9 @@ impl PowerProfileModesTable {
             value_names.push(value_name.to_owned());
 
             for (profile_i, raw_value) in split.enumerate() {
-                let value = raw_value.parse()?;
+                let value = raw_value.parse().map_err(|_| {
+                    Error::basic_parse_error(format!("Invalid mode value '{raw_value}'"))
+                })?;
 
                 let profile = modes.get_mut(&(profile_i as u16)).ok_or_else(|| {
                     Error::basic_parse_error("Could not get profile from header by index")
@@ -394,6 +404,7 @@ mod tests {
     const TABLE_RX580: &str = include_test_data!("rx580/pp_power_profile_mode");
     const TABLE_4800H: &str = include_test_data!("internal-4800h/pp_power_profile_mode");
     const TABLE_RX6900XT: &str = include_test_data!("rx6900xt/pp_power_profile_mode");
+    const TABLE_RX7600S: &str = include_test_data!("rx7600s/pp_power_profile_mode");
     const TABLE_RX7700S: &str = include_test_data!("rx7700s/pp_power_profile_mode");
     const TABLE_RX7800XT: &str = include_test_data!("rx7800xt/pp_power_profile_mode");
 
@@ -418,6 +429,12 @@ mod tests {
     #[test]
     fn parse_full_rx6900xt() {
         let table = PowerProfileModesTable::parse(TABLE_RX6900XT).unwrap();
+        assert_yaml_snapshot!(table);
+    }
+
+    #[test]
+    fn parse_full_rx7600s() {
+        let table = PowerProfileModesTable::parse(TABLE_RX7600S).unwrap();
         assert_yaml_snapshot!(table);
     }
 

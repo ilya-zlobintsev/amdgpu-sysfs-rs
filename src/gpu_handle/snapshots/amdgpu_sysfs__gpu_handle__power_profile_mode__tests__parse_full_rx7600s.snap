@@ -1,0 +1,173 @@
+---
+source: src/gpu_handle/power_profile_mode.rs
+expression: table
+---
+modes:
+  0:
+    name: BOOTUP_DEFAULT
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 0
+          - 0
+          - 1
+          - 4
+          - 0
+          - 800
+          - 0
+          - 0
+          - 0
+          - 3
+          - 1
+          - 0
+          - 0
+  1:
+    name: 3D_FULL_SCREEN
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 2
+          - 0
+          - 1
+          - 4
+          - 0
+          - 650
+          - 0
+          - 0
+          - 0
+          - 1
+          - 1
+          - 0
+          - 0
+  2:
+    name: POWER_SAVING
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 0
+          - 0
+          - 1
+          - 3
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 1
+          - 1
+          - 0
+          - 0
+  3:
+    name: VIDEO
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 0
+          - 0
+          - 1
+          - 4
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 1
+          - 1
+          - 0
+          - 0
+  4:
+    name: VR
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 1
+          - 0
+          - 4
+          - 1
+          - 1000
+          - 0
+          - 0
+          - 0
+          - 0
+          - 1
+          - 1
+          - 0
+          - 0
+  5:
+    name: COMPUTE
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 1
+          - 0
+          - 4
+          - 1
+          - 1000
+          - 0
+          - 0
+          - 0
+          - 0
+          - 1
+          - 1
+          - 0
+          - 0
+  6:
+    name: CUSTOM
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 0
+          - 0
+          - 1
+          - 4
+          - 0
+          - 800
+          - 0
+          - 0
+          - 0
+          - 3
+          - 1
+          - 0
+          - 0
+  7:
+    name: WINDOW_3D
+    components:
+      - clock_type: ~
+        values:
+          - 0
+          - 2
+          - 0
+          - 1
+          - 4
+          - 0
+          - 650
+          - 0
+          - 0
+          - 0
+          - 3
+          - 1
+          - 0
+          - 0
+value_names:
+  - Gfx_ActiveHystLimit
+  - Gfx_IdleHystLimit
+  - Gfx_FPS
+  - Gfx_MinActiveFreqType
+  - Gfx_BoosterFreqType
+  - Gfx_MinActiveFreq
+  - Gfx_BoosterFreq
+  - Fclk_ActiveHystLimit
+  - Fclk_IdleHystLimit
+  - Fclk_FPS
+  - Fclk_MinActiveFreqType
+  - Fclk_BoosterFreqType
+  - Fclk_MinActiveFreq
+  - Fclk_BoosterFreq
+active: 4
