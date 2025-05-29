@@ -6,7 +6,6 @@ current_sclk_range:
   min: 500
   max: 2499
 sclk_offset: ~
-rdna4_sclk_offset_workaround: false
 current_mclk_range:
   min: 97
   max: 1000

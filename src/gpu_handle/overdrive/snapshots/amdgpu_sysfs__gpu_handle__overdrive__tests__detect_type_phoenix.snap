@@ -8,7 +8,6 @@ data:
     min: 800
     max: 2700
   sclk_offset: ~
-  rdna4_sclk_offset_workaround: false
   current_mclk_range:
     min: ~
     max: ~

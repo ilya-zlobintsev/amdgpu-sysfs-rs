@@ -20,9 +20,6 @@ pub struct Table {
     pub current_sclk_range: Range,
     /// The current core clock offset (RDNA4+)
     pub sclk_offset: Option<i32>,
-    /// Workaround for the original buggy SCLK offset range format on RDNA4
-    /// TODO: drop this when the new format is widely used (should be kernel 6.15+)
-    pub rdna4_sclk_offset_workaround: bool,
     /// The current memory clock range. Empty on iGPUs.
     pub current_mclk_range: Range,
     /// The current voltage curve. May be empty if the GPU does not support it.
@@ -81,17 +78,10 @@ impl ClocksTable for Table {
         ]);
 
         if let Some(sclk_offset) = self.sclk_offset {
-            if self.rdna4_sclk_offset_workaround {
-                let line = format!("s 1 {sclk_offset}\n");
-                writer
-                    .write_all(line.as_bytes())
-                    .context("Could not write sclk offset")?;
-            } else {
-                let line = format!("s {sclk_offset}\n");
-                writer
-                    .write_all(line.as_bytes())
-                    .context("Could not write sclk offset")?;
-            }
+            let line = format!("s {sclk_offset}\n");
+            writer
+                .write_all(line.as_bytes())
+                .context("Could not write sclk offset")?;
         }
 
         for (maybe_clockspeed, symbol, index) in clocks_commands {
@@ -356,7 +346,6 @@ impl FromStr for Table {
         Ok(Self {
             current_sclk_range: current_sclk_range.unwrap_or_default(),
             sclk_offset,
-            rdna4_sclk_offset_workaround: current_sclk_offset_range.is_some(),
             current_mclk_range: current_mclk_range.unwrap_or_default(),
             vddc_curve,
             od_range,
@@ -640,7 +629,6 @@ mod tests {
             current_sclk_range: Range::empty(),
             current_mclk_range: Range::full(500, 1000),
             sclk_offset: None,
-            rdna4_sclk_offset_workaround: false,
             vddc_curve: vec![ClocksLevel::new(300, 600), ClocksLevel::new(1000, 1000)],
             voltage_offset: None,
             od_range: OdRange {

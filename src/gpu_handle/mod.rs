@@ -228,7 +228,7 @@ impl GpuHandle {
                         }
                     }
                 }
-                if let Some(s) = line.split(':').last() {
+                if let Some(s) = line.split(':').next_back() {
                     let parse_result = if let Some(suffix) = kind.value_suffix() {
                         let raw_value = s.trim().to_lowercase();
                         let value = raw_value.strip_suffix(suffix).ok_or_else(|| {
