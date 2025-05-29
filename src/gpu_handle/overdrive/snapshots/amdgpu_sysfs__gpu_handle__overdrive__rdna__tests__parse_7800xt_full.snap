@@ -1,15 +1,15 @@
 ---
-source: src/gpu_handle/overdrive/vega20.rs
+source: src/gpu_handle/overdrive/rdna.rs
 expression: table
 ---
 current_sclk_range:
   min: 500
-  max: 2735
+  max: 2660
 sclk_offset: ~
 rdna4_sclk_offset_workaround: false
 current_mclk_range:
   min: 97
-  max: 1250
+  max: 1219
 vddc_curve: []
 voltage_offset: 0
 od_range:

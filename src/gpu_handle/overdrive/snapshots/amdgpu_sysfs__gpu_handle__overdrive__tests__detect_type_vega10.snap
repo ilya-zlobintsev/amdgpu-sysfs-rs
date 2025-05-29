@@ -2,7 +2,7 @@
 source: src/gpu_handle/overdrive/mod.rs
 expression: table
 ---
-kind: vega10
+kind: gcn
 data:
   sclk_levels:
     - clockspeed: 852

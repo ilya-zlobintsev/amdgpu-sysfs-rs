@@ -42,7 +42,7 @@ impl ClocksTable for Table {
         writer: &mut W,
         previous_table: &ClocksTableGen,
     ) -> Result<()> {
-        let ClocksTableGen::Vega20(previous_table) = previous_table else {
+        let ClocksTableGen::Rdna(previous_table) = previous_table else {
             return Err(Error::not_allowed(
                 "Mismatched clocks table format".to_owned(),
             ));

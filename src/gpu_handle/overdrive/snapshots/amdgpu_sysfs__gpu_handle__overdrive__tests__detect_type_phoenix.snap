@@ -2,7 +2,7 @@
 source: src/gpu_handle/overdrive/mod.rs
 expression: table
 ---
-kind: vega20
+kind: rdna
 data:
   current_sclk_range:
     min: 800
