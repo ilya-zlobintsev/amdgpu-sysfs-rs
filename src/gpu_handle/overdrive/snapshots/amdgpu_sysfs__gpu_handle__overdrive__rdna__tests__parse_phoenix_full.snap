@@ -1,0 +1,22 @@
+---
+source: src/gpu_handle/overdrive/rdna.rs
+expression: table
+---
+current_sclk_range:
+  min: 800
+  max: 2700
+sclk_offset: ~
+current_mclk_range:
+  min: ~
+  max: ~
+vddc_curve: []
+voltage_offset: ~
+od_range:
+  sclk:
+    min: 800
+    max: 2700
+  sclk_offset: ~
+  mclk: ~
+  curve_sclk_points: []
+  curve_voltage_points: []
+  voltage_offset: ~

@@ -1,8 +1,8 @@
 //! GPU overdrive (overclocking)
 //!
 //! <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
-pub mod vega10;
-pub mod vega20;
+pub mod gcn;
+pub mod rdna;
 
 use crate::{
     error::{Error, ErrorKind},
@@ -157,8 +157,8 @@ fn check_clockspeed_in_range(range: Option<Range>, clockspeed: i32) -> Result<()
 
 /// Representation of clocks and voltage table (`pp_od_clk_voltage`).
 ///
-/// NOTE: despite the names, the tables here are not exclusive to Vega10 and 20!
-/// Vega10 covers everything Vega10 and older (including Polaris), while Vega20 includes all newer gpus as well (like Navi)
+/// NOTE: the variant names are not 100% accurate, they roughly represent what generations of GPUs use each format.
+/// For example, Radeon VII (Vega20) uses the new "RDNA" format.
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(
@@ -168,9 +168,9 @@ fn check_clockspeed_in_range(range: Option<Range>, clockspeed: i32) -> Result<()
 #[enum_dispatch(ClocksTable)]
 pub enum ClocksTableGen {
     /// Vega10 (and older) format
-    Vega10(vega10::Table),
+    Gcn(gcn::Table),
     /// Vega20 (and newer) format
-    Vega20(vega20::Table),
+    Rdna(rdna::Table),
 }
 
 impl FromStr for ClocksTableGen {
@@ -185,9 +185,9 @@ impl FromStr for ClocksTableGen {
                     sclk_line.contains("mhz") && !sclk_line.contains("mv")
                 })
         } {
-            vega20::Table::from_str(s).map(Self::Vega20)
+            rdna::Table::from_str(s).map(Self::Rdna)
         } else {
-            vega10::Table::from_str(s).map(Self::Vega10)
+            gcn::Table::from_str(s).map(Self::Gcn)
         }
     }
 }

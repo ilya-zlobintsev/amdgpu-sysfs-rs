@@ -273,7 +273,7 @@ enum Section {
 mod tests {
     use super::{ClocksLevel, Table};
     use crate::{
-        gpu_handle::overdrive::{arr_commands, vega10::OdRange, ClocksTable, Range},
+        gpu_handle::overdrive::{arr_commands, gcn::OdRange, ClocksTable, Range},
         include_table,
     };
     use pretty_assertions::assert_eq;

@@ -1,5 +1,5 @@
 ---
-source: src/gpu_handle/overdrive/vega20.rs
+source: src/gpu_handle/overdrive/rdna.rs
 expression: commands
 ---
 - s 0 500
@@ -7,4 +7,3 @@ expression: commands
 - m 0 97
 - m 1 1000
 - vo -10
-
