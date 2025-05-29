@@ -5,7 +5,7 @@ expression: table
 current_sclk_range:
   min: ~
   max: ~
-sclk_offset: 1000
+sclk_offset: 0
 current_mclk_range:
   min: 97
   max: 1259
