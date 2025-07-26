@@ -299,7 +299,7 @@ impl TryFrom<Range> for (i32, i32) {
 }
 
 /// Represents a combination of a clockspeed and voltage. May be used in different context based on the table format.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ClocksLevel {
     /// Clockspeed (in MHz)
