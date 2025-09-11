@@ -1,9 +1,9 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.19.1"
+version = "0.19.2"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
-license = "GPL-3.0"
+license = "LGPL-3.0-or-later"
 repository = "https://github.com/ilya-zlobintsev/amdgpu-sysfs-rs/"
 description = "Library for interacting with the Linux Kernel SysFS interface for GPUs (mainly targeted at the AMDGPU driver)."
 
