@@ -1,6 +1,6 @@
 [package]
 name = "amdgpu-sysfs"
-version = "0.19.2"
+version = "0.19.3"
 authors = ["Ilya Zlobintsev <ilya.zl@protonmail.com>"]
 edition = "2021"
 license = "LGPL-3.0-or-later"
@@ -16,8 +16,8 @@ enum_dispatch = { version = "0.3.8", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 
 [dev-dependencies]
-pretty_assertions = "1.2.1"
-rust-embed = "6.4.2"
-tempfile = "3.3"
+pretty_assertions = "1.4.1"
+rust-embed = "8.7.2"
+tempfile = "3.22.0"
 amdgpu-sysfs = { path = ".", features = ["serde"] }
-insta = { version = "1.28.0", features = ["yaml", "redactions"] }
+insta = { version = "1.43.2", features = ["yaml", "redactions"] }
