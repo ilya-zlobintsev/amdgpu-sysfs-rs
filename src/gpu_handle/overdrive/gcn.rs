@@ -26,12 +26,12 @@ impl ClocksTable for Table {
         writer: &mut W,
         _previous_table: &ClocksTableGen,
     ) -> Result<()> {
-        for (i, level) in self.sclk_levels.iter().enumerate() {
+        for (i, level) in self.sclk_levels.iter().enumerate().rev() {
             let command = level_command(*level, i, 's');
             writer.write_all(command.as_bytes())?;
         }
 
-        for (i, level) in self.mclk_levels.iter().enumerate() {
+        for (i, level) in self.mclk_levels.iter().enumerate().rev() {
             let command = level_command(*level, i, 'm');
             writer.write_all(command.as_bytes())?;
         }
