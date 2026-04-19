@@ -161,7 +161,7 @@ impl ClocksTable for Table {
         }
 
         self.sclk_levels[0].voltage = voltage;
-        for clock_level in &mut self.sclk_levels[1..len - 1] {
+        for clock_level in &mut self.sclk_levels[1..len] {
             clock_level.voltage = cmp::max(clock_level.voltage, voltage);
         }
 
