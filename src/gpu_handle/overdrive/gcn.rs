@@ -26,14 +26,17 @@ impl ClocksTable for Table {
         writer: &mut W,
         _previous_table: &ClocksTableGen,
     ) -> Result<()> {
-        for (i, level) in self.sclk_levels.iter().enumerate() {
-            let command = level_command(*level, i, 's');
-            writer.write_all(command.as_bytes())?;
-        }
+        let max_len = cmp::max(self.sclk_levels.len(), self.mclk_levels.len());
+        for i in 0..max_len {
+            if let Some(sclk_level) = self.sclk_levels.get(i) {
+                let command = level_command(*sclk_level, i, 's');
+                writer.write_all(command.as_bytes())?;
+            }
 
-        for (i, level) in self.mclk_levels.iter().enumerate() {
-            let command = level_command(*level, i, 'm');
-            writer.write_all(command.as_bytes())?;
+            if let Some(mclk_level) = self.mclk_levels.get(i) {
+                let command = level_command(*mclk_level, i, 'm');
+                writer.write_all(command.as_bytes())?;
+            }
         }
 
         Ok(())
@@ -336,16 +339,16 @@ mod tests {
 
         let expected_commands = arr_commands([
             "s 0 350 800",
+            "m 0 360 750",
             "s 1 600 800",
+            "m 1 1000 825",
             "s 2 900 912",
+            "m 2 2250 975",
             "s 3 1145 1125",
             "s 4 1215 1150",
             "s 5 1257 1150",
             "s 6 1300 1150",
             "s 7 1500 1200",
-            "m 0 360 750",
-            "m 1 1000 825",
-            "m 2 2250 975",
         ]);
 
         assert_eq!(expected_commands, commands);
