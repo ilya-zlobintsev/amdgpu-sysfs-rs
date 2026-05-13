@@ -199,6 +199,7 @@ impl GpuHandle {
 
     /// Retuns the list of power levels and index of the currently active level for a given kind of power state.
     /// `T` is the type that values should be deserialized into.
+    /// https://docs.kernel.org/gpu/amdgpu/thermal.html#pp-dpm
     pub fn get_clock_levels<T>(&self, kind: PowerLevelKind) -> Result<PowerLevels<T>>
     where
         T: FromStr,
@@ -859,6 +860,29 @@ S: 19Mhz *
         assert_eq!(
             PowerLevels {
                 levels: vec![615, 800, 888, 1000],
+                active: None,
+            },
+            levels
+        );
+    }
+
+    #[test]
+    fn parse_clock_levels_ignores_duplicate_active_markers() {
+        // driver tries to match active state by clocks value,
+        // which leads to duplicate active markers when there are multiple states with the same clocs
+        let levels = GpuHandle::parse_clock_levels::<u64>(
+            "\
+0: 400Mhz
+1: 600Mhz
+2: 687Mhz *
+3: 687Mhz *",
+            PowerLevelKind::CoreClock,
+        )
+        .unwrap();
+
+        assert_eq!(
+            PowerLevels {
+                levels: vec![400, 600, 687, 687],
                 active: None,
             },
             levels
