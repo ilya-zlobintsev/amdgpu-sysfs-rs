@@ -204,59 +204,67 @@ impl GpuHandle {
         T: FromStr,
         <T as FromStr>::Err: Display,
     {
-        self.read_file(kind.filename()).and_then(|content| {
-            let mut levels = Vec::new();
-            let mut active = None;
-            let mut invalid_active = false;
+        self.read_file(kind.filename())
+            .and_then(|content| Self::parse_clock_levels(&content, kind))
+    }
 
-            for mut line in content.trim().split('\n') {
-                if let Some(stripped) = line.strip_suffix('*') {
-                    line = stripped;
+    fn parse_clock_levels<T>(content: &str, kind: PowerLevelKind) -> Result<PowerLevels<T>>
+    where
+        T: FromStr,
+        <T as FromStr>::Err: Display,
+    {
+        let mut levels = Vec::new();
+        let mut active = None;
+        let mut invalid_active = false;
 
-                    if let Some(identifier) = stripped.split(':').next() {
-                        if identifier.trim().eq_ignore_ascii_case("S") {
-                            continue;
-                        }
+        for mut line in content.trim().split('\n') {
+            if let Some(stripped) = line.strip_suffix('*') {
+                line = stripped;
 
-                        if !invalid_active {
-                            if active.is_some() {
-                                active = None;
-                                invalid_active = true;
-                            } else {
-                                let idx = identifier
-                                    .trim()
-                                    .parse()
-                                    .context("Unexpected power level identifier")?;
-                                active = Some(idx);
-                            }
+                if let Some(identifier) = stripped.split(':').next() {
+                    if identifier.trim().eq_ignore_ascii_case("S") {
+                        continue;
+                    }
+
+                    if !invalid_active {
+                        if active.is_some() {
+                            active = None;
+                            invalid_active = true;
+                        } else {
+                            let idx = identifier
+                                .trim()
+                                .parse()
+                                .context("Unexpected power level identifier")?;
+                            active = Some(idx);
                         }
                     }
                 }
-                if let Some(s) = line.split(':').next_back() {
-                    let parse_result = if let Some(suffix) = kind.value_suffix() {
-                        let raw_value = s.trim().to_lowercase();
-                        let value = raw_value.strip_suffix(suffix).ok_or_else(|| {
-                            ErrorKind::ParseError {
+            }
+            if let Some(s) = line.split(':').next_back() {
+                let parse_result = if let Some(suffix) = kind.value_suffix() {
+                    let raw_value = s.trim().to_lowercase();
+                    let value =
+                        raw_value
+                            .strip_suffix(suffix)
+                            .ok_or_else(|| ErrorKind::ParseError {
                                 msg: format!("Level did not have the expected suffix {suffix}"),
                                 line: levels.len() + 1,
-                            }
-                        })?;
-                        T::from_str(value)
-                    } else {
-                        let value = s.trim();
-                        T::from_str(value)
-                    };
+                            })?;
+                    T::from_str(value)
+                } else {
+                    let value = s.trim();
+                    T::from_str(value)
+                };
 
-                    let parsed_value = parse_result.map_err(|err| ErrorKind::ParseError {
-                        msg: format!("Could not deserialize power level value: {err}"),
-                        line: levels.len() + 1,
-                    })?;
-                    levels.push(parsed_value);
-                }
+                let parsed_value = parse_result.map_err(|err| ErrorKind::ParseError {
+                    msg: format!("Could not deserialize power level value: {err}"),
+                    line: levels.len() + 1,
+                })?;
+                levels.push(parsed_value);
             }
+        }
 
-            Ok(PowerLevels { levels, active })
-        })
+        Ok(PowerLevels { levels, active })
     }
 
     impl_get_clocks_levels!(get_core_clock_levels, PowerLevelKind::CoreClock, u64);
@@ -786,5 +794,74 @@ impl CommitHandle {
                 self.file_path.file_name().unwrap()
             )
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{GpuHandle, PowerLevelKind, PowerLevels};
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn parse_clock_levels_with_suffix() {
+        let levels = GpuHandle::parse_clock_levels::<u64>(
+            "\
+0: 500Mhz
+1: 2124Mhz *",
+            PowerLevelKind::CoreClock,
+        )
+        .unwrap();
+
+        assert_eq!(
+            PowerLevels {
+                levels: vec![500, 2124],
+                active: Some(1),
+            },
+            levels
+        );
+    }
+
+    #[test]
+    fn parse_clock_levels_without_suffix() {
+        let levels = GpuHandle::parse_clock_levels::<String>(
+            "\
+0: 2.5GT/s, x1 310Mhz
+1: 16.0GT/s, x16 619Mhz *",
+            PowerLevelKind::PcieSpeed,
+        )
+        .unwrap();
+
+        assert_eq!(
+            PowerLevels {
+                levels: vec![
+                    "2.5GT/s, x1 310Mhz".to_owned(),
+                    "16.0GT/s, x16 619Mhz".to_owned(),
+                ],
+                active: Some(1),
+            },
+            levels
+        );
+    }
+
+    #[test]
+    fn parse_clock_levels_ignores_deep_sleep() {
+        let levels = GpuHandle::parse_clock_levels::<u64>(
+            "\
+S: 19Mhz *
+0: 615Mhz
+1: 800Mhz
+2: 888Mhz
+3: 1000Mhz",
+            PowerLevelKind::CoreClock,
+        )
+        .unwrap();
+
+        assert_eq!(
+            PowerLevels {
+                levels: vec![615, 800, 888, 1000],
+                active: None,
+            },
+            levels
+        );
     }
 }
