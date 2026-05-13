@@ -210,18 +210,14 @@ impl GpuHandle {
             let mut invalid_active = false;
 
             for mut line in content.trim().split('\n') {
-                if line
-                    .split(':')
-                    .next()
-                    .is_some_and(|identifier| identifier.trim().eq_ignore_ascii_case("S"))
-                {
-                    continue;
-                }
-
                 if let Some(stripped) = line.strip_suffix('*') {
                     line = stripped;
 
                     if let Some(identifier) = stripped.split(':').next() {
+                        if identifier.trim().eq_ignore_ascii_case("S") {
+                            continue;
+                        }
+
                         if !invalid_active {
                             if active.is_some() {
                                 active = None;
