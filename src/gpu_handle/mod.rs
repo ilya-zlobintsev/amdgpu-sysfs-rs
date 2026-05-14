@@ -189,7 +189,7 @@ impl GpuHandle {
     /// Returns the currently forced performance level.
     pub fn get_power_force_performance_level(&self) -> Result<PerformanceLevel> {
         let raw_level = self.read_file("power_dpm_force_performance_level")?;
-        PerformanceLevel::from_str(&raw_level)
+        PerformanceLevel::parse(&raw_level)
     }
 
     /// Forces a given performance level.
@@ -721,10 +721,10 @@ impl SysFS for GpuHandle {
 
 /// Performance level to be used by the GPU.
 ///
-/// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#pp-od-clk-voltage>
+/// <https://kernel.org/doc/html/latest/gpu/amdgpu/thermal.html#power-dpm-force-performance-level>
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(rename_all = "lowercase"))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
 pub enum PerformanceLevel {
     /// When auto is selected, the driver will attempt to dynamically select the optimal power profile for current conditions in the driver.
     #[default]
@@ -735,17 +735,36 @@ pub enum PerformanceLevel {
     High,
     /// When manual is selected, power states can be manually adjusted via `pp_dpm_*` files ([`GpuHandle::set_enabled_power_levels`]) and `pp_od_clk_voltage` ([`GpuHandle::set_clocks_table`]).
     Manual,
+    /// Fixed profiling mode with ASIC-specific clocks.
+    ProfileStandard,
+    /// Profiling mode that forces the core clock to the lowest level.
+    ProfileMinSclk,
+    /// Profiling mode that forces the memory clock to the lowest level.
+    ProfileMinMclk,
+    /// Profiling mode that forces clocks to the highest levels.
+    ProfilePeak,
+    /// next two are undocumented, but exist in the kernel's amd_dpm_forced_level enum
+    /// https://github.com/torvalds/linux/blob/e1914add2799225a87502051415fc5c32aeb02ae/drivers/gpu/drm/amd/include/kgd_pp_interface.h#L56-L67
+    /// Kernel extension for deterministic performance profiling.
+    PerfDeterminism,
+    /// Kernel extension used to exit profiling mode.
+    ProfileExit,
 }
 
-impl FromStr for PerformanceLevel {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self> {
+impl PerformanceLevel {
+    /// Parses the contents of `power_dpm_force_performance_level`.
+    pub fn parse(s: &str) -> Result<Self> {
         match s {
-            "auto" | "Automatic" => Ok(PerformanceLevel::Auto),
-            "high" | "Highest Clocks" => Ok(PerformanceLevel::High),
-            "low" | "Lowest Clocks" => Ok(PerformanceLevel::Low),
-            "manual" | "Manual" => Ok(PerformanceLevel::Manual),
+            "auto" => Ok(PerformanceLevel::Auto),
+            "high" => Ok(PerformanceLevel::High),
+            "low" => Ok(PerformanceLevel::Low),
+            "manual" => Ok(PerformanceLevel::Manual),
+            "profile_standard" => Ok(PerformanceLevel::ProfileStandard),
+            "profile_min_sclk" => Ok(PerformanceLevel::ProfileMinSclk),
+            "profile_min_mclk" => Ok(PerformanceLevel::ProfileMinMclk),
+            "profile_peak" => Ok(PerformanceLevel::ProfilePeak),
+            "perf_determinism" => Ok(PerformanceLevel::PerfDeterminism),
+            "profile_exit" => Ok(PerformanceLevel::ProfileExit),
             _ => Err(ErrorKind::ParseError {
                 msg: "unrecognized GPU power profile".to_string(),
                 line: 1,
@@ -765,6 +784,12 @@ impl fmt::Display for PerformanceLevel {
                 PerformanceLevel::High => "high",
                 PerformanceLevel::Low => "low",
                 PerformanceLevel::Manual => "manual",
+                PerformanceLevel::ProfileStandard => "profile_standard",
+                PerformanceLevel::ProfileMinSclk => "profile_min_sclk",
+                PerformanceLevel::ProfileMinMclk => "profile_min_mclk",
+                PerformanceLevel::ProfilePeak => "profile_peak",
+                PerformanceLevel::PerfDeterminism => "perf_determinism",
+                PerformanceLevel::ProfileExit => "profile_exit",
             }
         )
     }
