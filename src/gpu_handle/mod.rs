@@ -189,7 +189,7 @@ impl GpuHandle {
     /// Returns the currently forced performance level.
     pub fn get_power_force_performance_level(&self) -> Result<PerformanceLevel> {
         let raw_level = self.read_file("power_dpm_force_performance_level")?;
-        PerformanceLevel::parse(&raw_level)
+        PerformanceLevel::from_str(&raw_level)
     }
 
     /// Forces a given performance level.
@@ -751,9 +751,10 @@ pub enum PerformanceLevel {
     ProfileExit,
 }
 
-impl PerformanceLevel {
-    /// Parses the contents of `power_dpm_force_performance_level`.
-    pub fn parse(s: &str) -> Result<Self> {
+impl FromStr for PerformanceLevel {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self> {
         match s {
             "auto" => Ok(PerformanceLevel::Auto),
             "high" => Ok(PerformanceLevel::High),
