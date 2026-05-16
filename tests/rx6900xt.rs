@@ -1,4 +1,4 @@
-use amdgpu_sysfs::gpu_handle::{GpuHandle, PowerLevels, PowerLevelsActiveId};
+use amdgpu_sysfs::gpu_handle::{GpuHandle, PowerLevelId, PowerLevels};
 use utils::p_level;
 
 mod sysfs;
@@ -13,7 +13,7 @@ test_with_handle! {
                 p_level(0, 500),
                 p_level(1, 2660)
             ],
-            active: Some(PowerLevelsActiveId::Index(0))
+            active: Some(PowerLevelId::Index(0))
         })
     },
 }

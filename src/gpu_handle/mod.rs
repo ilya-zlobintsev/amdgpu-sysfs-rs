@@ -6,7 +6,7 @@ mod power_levels;
 pub mod fan_control;
 pub mod power_profile_mode;
 
-pub use power_levels::{PowerLevel, PowerLevelKind, PowerLevels, PowerLevelsActiveId};
+pub use power_levels::{PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
 
 use self::fan_control::{FanCurve, FanCurveRanges, FanInfo};
 use crate::{
@@ -226,8 +226,8 @@ impl GpuHandle {
 
             if let Some((identifier, s)) = line.split_once(':') {
                 let id = match identifier.trim() {
-                    "S" => PowerLevelsActiveId::Sleep,
-                    identifier => PowerLevelsActiveId::Index(
+                    "S" => PowerLevelId::Sleep,
+                    identifier => PowerLevelId::Index(
                         identifier
                             .parse()
                             .context("Unexpected power level identifier")?,
@@ -805,19 +805,19 @@ impl CommitHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::{GpuHandle, PowerLevel, PowerLevelKind, PowerLevels, PowerLevelsActiveId};
+    use super::{GpuHandle, PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
     use pretty_assertions::assert_eq;
 
     fn level<T>(id: u8, value: T) -> PowerLevel<T> {
         PowerLevel {
-            id: PowerLevelsActiveId::Index(id),
+            id: PowerLevelId::Index(id),
             value,
         }
     }
 
     fn sleep<T>(value: T) -> PowerLevel<T> {
         PowerLevel {
-            id: PowerLevelsActiveId::Sleep,
+            id: PowerLevelId::Sleep,
             value,
         }
     }
@@ -835,7 +835,7 @@ mod tests {
         assert_eq!(
             PowerLevels {
                 levels: vec![level(0, 500), level(1, 2124)],
-                active: Some(PowerLevelsActiveId::Index(1)),
+                active: Some(PowerLevelId::Index(1)),
             },
             levels
         );
@@ -857,7 +857,7 @@ mod tests {
                     level(0, "2.5GT/s, x1 310Mhz".to_owned()),
                     level(1, "16.0GT/s, x16 619Mhz".to_owned()),
                 ],
-                active: Some(PowerLevelsActiveId::Index(1)),
+                active: Some(PowerLevelId::Index(1)),
             },
             levels
         );
@@ -885,7 +885,7 @@ S: 19Mhz *
                     level(2, 888),
                     level(3, 1000)
                 ],
-                active: Some(PowerLevelsActiveId::Sleep),
+                active: Some(PowerLevelId::Sleep),
             },
             levels
         );
@@ -913,7 +913,7 @@ S: 19Mhz
                     level(2, 888),
                     level(3, 1000)
                 ],
-                active: Some(PowerLevelsActiveId::Index(0)),
+                active: Some(PowerLevelId::Index(0)),
             },
             levels
         );

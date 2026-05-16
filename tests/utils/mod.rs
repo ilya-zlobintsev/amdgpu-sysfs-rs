@@ -1,8 +1,8 @@
-use amdgpu_sysfs::gpu_handle::{PowerLevel, PowerLevelsActiveId};
+use amdgpu_sysfs::gpu_handle::{PowerLevel, PowerLevelId};
 
 pub fn p_level<T>(id: u8, value: T) -> PowerLevel<T> {
     PowerLevel {
-        id: PowerLevelsActiveId::Index(id),
+        id: PowerLevelId::Index(id),
         value,
     }
 }

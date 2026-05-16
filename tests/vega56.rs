@@ -2,7 +2,7 @@ mod sysfs;
 mod utils;
 
 use amdgpu_sysfs::{
-    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels, PowerLevelsActiveId},
+    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels, PowerLevelId},
     hw_mon::{HwMon, Temperature},
 };
 use std::collections::HashMap;
@@ -52,7 +52,7 @@ test_with_handle! {
                 p_level(6, 1538),
                 p_level(7, 1590)
             ],
-            active: Some(PowerLevelsActiveId::Index(0))
+            active: Some(PowerLevelId::Index(0))
         })
     },
     pp_dpm_mclk => {
@@ -64,7 +64,7 @@ test_with_handle! {
                 p_level(2, 700),
                 p_level(3, 920),
             ],
-            active: Some(PowerLevelsActiveId::Index(0))
+            active: Some(PowerLevelId::Index(0))
         })
     },
     pp_dpm_pcie => {

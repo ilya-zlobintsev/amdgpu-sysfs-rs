@@ -8,7 +8,7 @@ pub struct PowerLevels<T> {
     /// List of possible levels.
     pub levels: Vec<PowerLevel<T>>,
     /// The currently active level.
-    pub active: Option<PowerLevelsActiveId>,
+    pub active: Option<PowerLevelId>,
 }
 
 impl<T> PowerLevels<T> {
@@ -28,7 +28,7 @@ impl<T> PowerLevels<T> {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerLevel<T> {
     /// Printed sysfs level identifier.
-    pub id: PowerLevelsActiveId,
+    pub id: PowerLevelId,
     /// Level value.
     pub value: T,
 }
@@ -45,7 +45,7 @@ macro_rules! impl_get_clocks_levels {
 /// Identifier of a power level.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub enum PowerLevelsActiveId {
+pub enum PowerLevelId {
     /// Numeric power level index.
     Index(u8),
     /// Deep sleep power level.
