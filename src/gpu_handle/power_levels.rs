@@ -6,16 +6,31 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PowerLevels<T> {
     /// List of possible levels.
-    pub levels: Vec<T>,
+    pub levels: Vec<PowerLevel<T>>,
     /// The currently active level.
-    pub active: Option<usize>,
+    pub active: Option<PowerLevelsActiveId>,
 }
 
 impl<T> PowerLevels<T> {
     /// Gets the currently active level value.
     pub fn active_level(&self) -> Option<&T> {
-        self.active.and_then(|active| self.levels.get(active))
+        self.active.and_then(|active| {
+            self.levels
+                .iter()
+                .find(|level| level.id == active)
+                .map(|level| &level.value)
+        })
     }
+}
+
+/// Single power level row.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PowerLevel<T> {
+    /// Printed sysfs level identifier.
+    pub id: PowerLevelsActiveId,
+    /// Level value.
+    pub value: T,
 }
 
 macro_rules! impl_get_clocks_levels {
@@ -25,6 +40,16 @@ macro_rules! impl_get_clocks_levels {
             self.get_clock_levels($level)
         }
     };
+}
+
+/// Identifier of a power level.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum PowerLevelsActiveId {
+    /// Numeric power level index.
+    Index(u8),
+    /// Deep sleep power level.
+    Sleep,
 }
 
 /// Type of a power level.
