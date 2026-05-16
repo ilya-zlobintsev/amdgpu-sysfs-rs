@@ -1,10 +1,12 @@
 mod sysfs;
+mod utils;
 
 use amdgpu_sysfs::{
-    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels},
+    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels, PowerLevelId},
     hw_mon::{HwMon, Temperature},
 };
 use std::collections::HashMap;
+use utils::p_level;
 
 test_with_handle! {
     "vega56",
@@ -41,37 +43,37 @@ test_with_handle! {
         GpuHandle::get_core_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                852,
-                991,
-                1138,
-                1269,
-                1312,
-                1474,
-                1538,
-                1590
+                p_level(0, 852),
+                p_level(1, 991),
+                p_level(2, 1138),
+                p_level(3, 1269),
+                p_level(4, 1312),
+                p_level(5, 1474),
+                p_level(6, 1538),
+                p_level(7, 1590)
             ],
-            active: Some(0)
+            active: Some(PowerLevelId::Index(0))
         })
     },
     pp_dpm_mclk => {
         GpuHandle::get_memory_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                167,
-                500,
-                700,
-                920,
+                p_level(0, 167),
+                p_level(1, 500),
+                p_level(2, 700),
+                p_level(3, 920),
             ],
-            active: Some(0)
+            active: Some(PowerLevelId::Index(0))
         })
     },
     pp_dpm_pcie => {
         GpuHandle::get_pcie_clock_levels,
         Ok(PowerLevels {
             levels: [
-                "8.0GT/s, x16",
-                "8.0GT/s, x16"
-            ].map(str::to_owned).to_vec(),
+                p_level(0, "8.0GT/s, x16".to_owned()),
+                p_level(1, "8.0GT/s, x16".to_owned())
+            ].to_vec(),
             active: None
         })
     }

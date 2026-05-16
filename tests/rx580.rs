@@ -1,10 +1,12 @@
 mod sysfs;
+mod utils;
 
 use amdgpu_sysfs::{
-    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevels},
+    gpu_handle::{GpuHandle, PerformanceLevel, PowerLevelId, PowerLevels},
     hw_mon::{HwMon, Temperature},
 };
 use std::collections::HashMap;
+use utils::p_level;
 
 test_with_handle! {
     "rx580",
@@ -38,37 +40,37 @@ test_with_handle! {
         GpuHandle::get_core_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                300,
-                600,
-                900,
-                1145,
-                1215,
-                1257,
-                1300,
-                1366
+                p_level(0, 300),
+                p_level(1, 600),
+                p_level(2, 900),
+                p_level(3, 1145),
+                p_level(4, 1215),
+                p_level(5, 1257),
+                p_level(6, 1300),
+                p_level(7, 1366)
             ],
-            active: Some(2)
+            active: Some(PowerLevelId::Index(2))
         })
     },
     pp_dpm_mclk => {
         GpuHandle::get_memory_clock_levels,
         Ok(PowerLevels {
             levels: vec![
-                300,
-                1000,
-                1750,
+                p_level(0, 300),
+                p_level(1, 1000),
+                p_level(2, 1750),
             ],
-            active: Some(2)
+            active: Some(PowerLevelId::Index(2))
         })
     },
     pp_dpm_pcie => {
         GpuHandle::get_pcie_clock_levels,
         Ok(PowerLevels {
             levels: [
-                "2.5GT/s, x8",
-                "8.0GT/s, x16"
-            ].map(str::to_owned).to_vec(),
-            active: Some(1)
+                p_level(0, "2.5GT/s, x8".to_owned()),
+                p_level(1, "8.0GT/s, x16".to_owned())
+            ].to_vec(),
+            active: Some(PowerLevelId::Index(1))
         })
     }
 }

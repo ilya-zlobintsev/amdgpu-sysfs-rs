@@ -6,7 +6,7 @@ mod power_levels;
 pub mod fan_control;
 pub mod power_profile_mode;
 
-pub use power_levels::{PowerLevelKind, PowerLevels};
+pub use power_levels::{PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
 
 use self::fan_control::{FanCurve, FanCurveRanges, FanInfo};
 use crate::{
@@ -218,30 +218,32 @@ impl GpuHandle {
         let mut active = None;
         let mut invalid_active = false;
 
-        for mut line in content.trim().split('\n') {
-            if let Some(stripped) = line.strip_suffix('*') {
-                line = stripped;
+        for line in content.trim().split('\n') {
+            let (line, is_active) = match line.strip_suffix('*') {
+                Some(stripped) => (stripped, true),
+                None => (line, false),
+            };
 
-                if let Some(identifier) = stripped.split(':').next() {
-                    if identifier.trim().eq_ignore_ascii_case("S") {
-                        continue;
-                    }
-
-                    if !invalid_active {
-                        if active.is_some() {
-                            active = None;
-                            invalid_active = true;
-                        } else {
-                            let idx = identifier
-                                .trim()
-                                .parse()
-                                .context("Unexpected power level identifier")?;
-                            active = Some(idx);
-                        }
+            if let Some((identifier, s)) = line.split_once(':') {
+                let id = match identifier.trim() {
+                    "S" => PowerLevelId::Sleep,
+                    identifier => PowerLevelId::Index(
+                        identifier
+                            .parse()
+                            .context("Unexpected power level identifier")?,
+                    ),
+                };
+                // https://gitlab.freedesktop.org/drm/amd/-/work_items/5296
+                // handles duplicate active level lines
+                if is_active && !invalid_active {
+                    if active.is_some() {
+                        active = None;
+                        invalid_active = true;
+                    } else {
+                        active = Some(id);
                     }
                 }
-            }
-            if let Some(s) = line.split(':').next_back() {
+
                 let parse_result = if let Some(suffix) = kind.value_suffix() {
                     let raw_value = s.trim().to_lowercase();
                     let value =
@@ -261,7 +263,10 @@ impl GpuHandle {
                     msg: format!("Could not deserialize power level value: {err}"),
                     line: levels.len() + 1,
                 })?;
-                levels.push(parsed_value);
+                levels.push(PowerLevel {
+                    id,
+                    value: parsed_value,
+                });
             }
         }
 
@@ -826,8 +831,22 @@ impl CommitHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::{GpuHandle, PowerLevelKind, PowerLevels};
+    use super::{GpuHandle, PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
     use pretty_assertions::assert_eq;
+
+    fn level<T>(id: u8, value: T) -> PowerLevel<T> {
+        PowerLevel {
+            id: PowerLevelId::Index(id),
+            value,
+        }
+    }
+
+    fn sleep<T>(value: T) -> PowerLevel<T> {
+        PowerLevel {
+            id: PowerLevelId::Sleep,
+            value,
+        }
+    }
 
     #[test]
     fn parse_clock_levels_with_suffix() {
@@ -841,8 +860,8 @@ mod tests {
 
         assert_eq!(
             PowerLevels {
-                levels: vec![500, 2124],
-                active: Some(1),
+                levels: vec![level(0, 500), level(1, 2124)],
+                active: Some(PowerLevelId::Index(1)),
             },
             levels
         );
@@ -861,17 +880,17 @@ mod tests {
         assert_eq!(
             PowerLevels {
                 levels: vec![
-                    "2.5GT/s, x1 310Mhz".to_owned(),
-                    "16.0GT/s, x16 619Mhz".to_owned(),
+                    level(0, "2.5GT/s, x1 310Mhz".to_owned()),
+                    level(1, "16.0GT/s, x16 619Mhz".to_owned()),
                 ],
-                active: Some(1),
+                active: Some(PowerLevelId::Index(1)),
             },
             levels
         );
     }
 
     #[test]
-    fn parse_clock_levels_ignores_deep_sleep() {
+    fn parse_clock_levels_marks_deep_sleep_active() {
         let levels = GpuHandle::parse_clock_levels::<u64>(
             "\
 S: 19Mhz *
@@ -885,8 +904,42 @@ S: 19Mhz *
 
         assert_eq!(
             PowerLevels {
-                levels: vec![615, 800, 888, 1000],
-                active: None,
+                levels: vec![
+                    sleep(19),
+                    level(0, 615),
+                    level(1, 800),
+                    level(2, 888),
+                    level(3, 1000)
+                ],
+                active: Some(PowerLevelId::Sleep),
+            },
+            levels
+        );
+    }
+
+    #[test]
+    fn parse_clock_levels_marks_deep_sleep_inactive() {
+        let levels = GpuHandle::parse_clock_levels::<u64>(
+            "\
+S: 19Mhz
+0: 615Mhz *
+1: 800Mhz
+2: 888Mhz
+3: 1000Mhz",
+            PowerLevelKind::CoreClock,
+        )
+        .unwrap();
+
+        assert_eq!(
+            PowerLevels {
+                levels: vec![
+                    sleep(19),
+                    level(0, 615),
+                    level(1, 800),
+                    level(2, 888),
+                    level(3, 1000)
+                ],
+                active: Some(PowerLevelId::Index(0)),
             },
             levels
         );
@@ -908,7 +961,7 @@ S: 19Mhz *
 
         assert_eq!(
             PowerLevels {
-                levels: vec![400, 600, 687, 687],
+                levels: vec![level(0, 400), level(1, 600), level(2, 687), level(3, 687)],
                 active: None,
             },
             levels
