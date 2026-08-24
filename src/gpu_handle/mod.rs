@@ -6,7 +6,7 @@ mod power_levels;
 pub mod fan_control;
 pub mod power_profile_mode;
 
-pub use power_levels::{PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
+pub use power_levels::{PowerLevel, PowerLevelId, PowerLevelKind, PowerLevels};
 
 use self::fan_control::{FanCurve, FanCurveRanges, FanInfo};
 use crate::{
@@ -320,13 +320,20 @@ impl GpuHandle {
     }
 
     /// Resets the clocks table to the default configuration.
+    ///
+    /// Depending on the GPU, the kernel may commit the reset immediately or
+    /// stage it until a separate commit
+    ///
+    /// immediately: https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu11/sienna_cichlid_ppt.c#L2367
+    /// stage: https://github.com/torvalds/linux/blob/v7.2/drivers/gpu/drm/amd/pm/swsmu/smu11/navi10_ppt.c#L2467
+    /// https://docs.kernel.org/gpu/amdgpu/thermal.html#pp-od-clk-voltag
     #[cfg(feature = "overdrive")]
-    pub fn reset_clocks_table(&self) -> Result<()> {
+    pub fn reset_clocks_table(&self) -> Result<CommitHandle> {
         let path = self.sysfs_path.join("pp_od_clk_voltage");
-        let mut file = File::create(path)?;
+        let mut file = File::create(&path)?;
         file.write_all(b"r\n")?;
 
-        Ok(())
+        Ok(CommitHandle::new(path))
     }
 
     /// Reads the list of predefined power profiles and the relevant heuristics settings for them from `pp_power_profile_mode`
@@ -831,7 +838,7 @@ impl CommitHandle {
 
 #[cfg(test)]
 mod tests {
-    use super::{GpuHandle, PowerLevel, PowerLevelKind, PowerLevels, PowerLevelId};
+    use super::{GpuHandle, PowerLevel, PowerLevelId, PowerLevelKind, PowerLevels};
     use pretty_assertions::assert_eq;
 
     fn level<T>(id: u8, value: T) -> PowerLevel<T> {
