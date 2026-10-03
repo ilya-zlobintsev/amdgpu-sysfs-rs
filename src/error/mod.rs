@@ -53,6 +53,14 @@ impl Error {
         .into()
     }
 
+    pub(crate) fn parse_error(msg: impl Into<String>, line: usize) -> Self {
+        ErrorKind::ParseError {
+            msg: msg.into(),
+            line,
+        }
+        .into()
+    }
+
     pub(crate) fn not_allowed(msg: String) -> Self {
         ErrorKind::NotAllowed(msg).into()
     }

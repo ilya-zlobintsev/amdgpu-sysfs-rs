@@ -723,6 +723,27 @@ impl GpuHandle {
     pub fn reset_fan_curve(&self) -> Result<()> {
         self.reset_fan_value("fan_curve")
     }
+
+    /// Get the possible UMA carveout options.
+    /// Only applicable to certain integrated GPUs.
+    pub fn get_uma_carveout_options(&self) -> Result<UmaCarveoutOptions> {
+        let source = self.read_file("uma/carveout_options")?;
+        UmaCarveoutOptions::parse(&source)
+    }
+
+    /// Get the current configured UMA carveout.
+    /// Only applicable to certain integrated GPUs.
+    ///
+    /// Returns an index into [`UmaCarveoutOptions`].
+    pub fn get_current_uma_carveout(&self) -> Result<usize> {
+        self.read_file_parsed("uma/carveout")
+    }
+
+    /// Sets the UMA carveout using an index from [`UmaCarveoutOptions`].
+    /// Only applicable to certain integrated GPUs. Needs a reboot to take effect.
+    pub fn set_uma_carveout(&self, value: usize) -> Result<()> {
+        self.write_file("uma/carveout", value.to_string())
+    }
 }
 
 impl SysFS for GpuHandle {
@@ -836,8 +857,82 @@ impl CommitHandle {
     }
 }
 
+/// Supported UMA carveout options
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub struct UmaCarveoutOptions {
+    /// [`GpuHandle::get_uma_carveout_current`] returns an index into this vector
+    pub options: Vec<UmaCarveoutOption>,
+}
+
+impl UmaCarveoutOptions {
+    fn parse(source: &str) -> Result<Self> {
+        let mut options = Vec::new();
+
+        for (i, line) in source.lines().enumerate() {
+            let (index, line) = line
+                .split_once(": ")
+                .ok_or_else(|| Error::parse_error("could not split index", i))?;
+
+            if !index.parse::<usize>().is_ok_and(|index| index == i) {
+                return Err(Error::parse_error(format!("unexpected index {index}"), i));
+            }
+
+            let (raw_name, raw_size) = line
+                .split_once('(')
+                .ok_or_else(|| Error::parse_error("could not find (", i))?;
+
+            if !raw_size.chars().next_back().is_some_and(|c| c == ')') {
+                return Err(Error::parse_error("line should end with )", i));
+            }
+
+            let raw_size = &raw_size[0..raw_size.len() - 1];
+            let (size_num, size_unit) = raw_size
+                .split_once(' ')
+                .ok_or_else(|| Error::parse_error("unexpected size format", i))?;
+            let size_num: u64 = size_num.parse()?;
+
+            let size_bytes = match size_unit {
+                "MB" => size_num * 1024u64.pow(2),
+                "GB" => size_num * 1024u64.pow(3),
+                _ => {
+                    return Err(Error::basic_parse_error(format!(
+                        "Unexpected size unit '{size_unit}'"
+                    )))
+                }
+            };
+
+            let name = raw_name.trim_ascii_end();
+            let name = if !name.is_empty() {
+                Some(name.to_owned())
+            } else {
+                None
+            };
+
+            options.push(UmaCarveoutOption { name, size_bytes })
+        }
+
+        Ok(Self { options })
+    }
+}
+
+/// Single UMA carveout option
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", serde(rename_all = "snake_case"))]
+pub struct UmaCarveoutOption {
+    /// Name of the option such as "Minimum" or "High".
+    /// May be absent on some of the options.
+    pub name: Option<String>,
+    /// The size of the carveout in bytes.
+    pub size_bytes: u64,
+}
+
 #[cfg(test)]
 mod tests {
+    use crate::gpu_handle::UmaCarveoutOptions;
+
     use super::{GpuHandle, PowerLevel, PowerLevelId, PowerLevelKind, PowerLevels};
     use pretty_assertions::assert_eq;
 
@@ -973,5 +1068,23 @@ S: 19Mhz
             },
             levels
         );
+    }
+
+    #[test]
+    fn parse_uma_carveout_options() {
+        let source = include_test_data!("strixpoint/uma/carveout_options");
+        let carveout = UmaCarveoutOptions::parse(source).unwrap();
+
+        assert_eq!(536870912, carveout.options[0].size_bytes);
+        assert_eq!(Some("Minimum"), carveout.options[0].name.as_deref());
+
+        assert_eq!(1073741824, carveout.options[1].size_bytes);
+        assert_eq!(None, carveout.options[1].name.as_deref());
+
+        assert_eq!(8589934592, carveout.options[5].size_bytes);
+        assert_eq!(Some("Medium"), carveout.options[5].name.as_deref());
+
+        assert_eq!(17179869184, carveout.options[7].size_bytes);
+        assert_eq!(Some("High"), carveout.options[7].name.as_deref());
     }
 }
